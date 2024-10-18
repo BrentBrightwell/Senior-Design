@@ -4,6 +4,8 @@ import time
 from picamera2 import Picamera2
 import numpy as np
 import shutil
+import tkinter as tk
+from tkinter import messagebox
 
 face_detector = cv2.CascadeClassifier("classifiers/haarcascade_frontalface_default.xml")
 cv2.startWindowThread()
@@ -17,6 +19,9 @@ detected_faces_dir = "detected_faces"
 approved_faces_dir = "approved_faces"
 os.makedirs(detected_faces_dir, exist_ok=True)
 os.makedirs(approved_faces_dir, exist_ok=True)
+
+# Global variable to store approval status
+approval_status = None
 
 def compare_faces(new_face, approved_faces_dir):
     for file in os.listdir(approved_faces_dir):
@@ -35,9 +40,19 @@ def compare_faces(new_face, approved_faces_dir):
         similarity = cv2.compareHist(hist_new_face, hist_approved_face, cv2.HISTCMP_CORREL)
         
         # If similarity score is high, consider it a match
-        if similarity > 0.9:
+        if similarity > 0.5:
             return True
     return False
+
+def approve_face():
+    global approval_status
+    approval_status = "approve"
+    root.destroy()
+
+def deny_face():
+    global approval_status
+    approval_status = "deny"
+    root.destroy()
 
 while True:
     im = picam2.capture_array()
@@ -60,20 +75,39 @@ while True:
             cv2.imwrite(filename, face_roi)  # Save only the detected face portion
             print("New face detected. Approve or deny.")
 
-            # Show the detected face and ask for approval (Y/N)
+            # Show the detected face in the camera window
             cv2.imshow("New Face", face_roi)
-            key = cv2.waitKey(0)  # Wait for user input
-            
-            if key == ord('y') or key == ord('Y'):
+
+            # Create a GUI window with "Approve" and "Deny" buttons
+            root = tk.Tk()
+            root.title("Face Approval")
+
+            # Set up the window size and position
+            root.geometry("300x100")
+            root.eval('tk::PlaceWindow . center')  # Center the window
+
+            # Create buttons
+            approve_button = tk.Button(root, text="Approve", command=approve_face, bg="green", fg="white", width=10)
+            deny_button = tk.Button(root, text="Deny", command=deny_face, bg="red", fg="white", width=10)
+
+            # Add buttons to the window
+            approve_button.pack(side="left", padx=20, pady=20)
+            deny_button.pack(side="right", padx=20, pady=20)
+
+            # Wait for user input (approve or deny)
+            root.mainloop()
+
+            # Process the approval status
+            if approval_status == "approve":
                 print("Face approved.")
                 # Move the face image to the approved faces directory
                 approved_filename = os.path.join(approved_faces_dir, f"approved_{timestamp}.jpg")
                 shutil.move(filename, approved_filename)
-            else:
+            elif approval_status == "deny":
                 print("Face denied.")
                 # If denied, delete the saved image
                 os.remove(filename)
-            
+
             cv2.destroyWindow("New Face")  # Close the face preview window
 
     cv2.imshow("Camera", im)
