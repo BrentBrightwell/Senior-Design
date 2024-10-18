@@ -7,8 +7,14 @@ import tkinter as tk
 from tkinter import Label, Button
 from PIL import Image, ImageTk
 from picamera2 import Picamera2  # Pillow for image handling
+from enum import Enum
 
-# Initalize Picamera2
+# Define the modes as an Enum
+class Mode(Enum):
+    TRAINING = "training"
+    ACTIVE = "active"
+
+# Initialize Picamera2
 picam2 = Picamera2()
 picam2.configure(picam2.create_preview_configuration(main={"format": "XRGB8888", "size": (640, 480)}))
 picam2.start()
@@ -92,6 +98,9 @@ def show_face_in_gui(face_roi):
     # Wait for user input (approve or deny)
     root.mainloop()
 
+# Initialize mode
+mode = Mode.TRAINING  # Set to either Mode.TRAINING or Mode.ACTIVE
+
 while True:
     # Capture image from the camera
     im = picam2.capture_array()
@@ -128,32 +137,49 @@ while True:
             grey_face_roi = cv2.cvtColor(face_roi, cv2.COLOR_BGR2GRAY)
 
             # Check if the detected face is already in the approved faces directory
-            if compare_faces(grey_face_roi, approved_faces_dir):
-                print("Approved face detected.")
-            else:
-                # Save the face image in the detected faces directory with a timestamp
-                timestamp = int(time.time())
-                filename = os.path.join(detected_faces_dir, f"face_{timestamp}.jpg")
-                cv2.imwrite(filename, grey_face_roi)  # Save only the detected face portion
-                print("New face detected. Approve or deny.")
+            if mode == Mode.ACTIVE:
+                # In active mode, check for an approved face without GUI
+                if compare_faces(grey_face_roi, approved_faces_dir):
+                    # Draw a green rectangle for approved faces
+                    cv2.rectangle(im_rgb, (startX, startY), (endX, endY), (0, 255, 0), 2)
+                    print("Approved face detected.")
+                else:
+                    # Draw a red rectangle for unapproved faces
+                    cv2.rectangle(im_rgb, (startX, startY), (endX, endY), (0, 0, 255), 2)
+                    print("ALERT! Intruder Detected")
+            else:  # TRAINING mode
+                # Check if the detected face is already in the approved faces directory
+                if compare_faces(grey_face_roi, approved_faces_dir):
+                    print("Approved face detected.")
+                else:
+                    # Save the face image in the detected faces directory with a timestamp
+                    timestamp = int(time.time())
+                    filename = os.path.join(detected_faces_dir, f"face_{timestamp}.jpg")
+                    cv2.imwrite(filename, grey_face_roi)  # Save only the detected face portion
+                    print("New face detected. Approve or deny.")
 
-                # Display the face in the GUI window for approval
-                show_face_in_gui(grey_face_roi)
+                    # Display the face in the GUI window for approval
+                    show_face_in_gui(grey_face_roi)
 
-                # Process the approval status
-                if approval_status == "approve":
-                    print("Face approved.")
-                    # Move the face image to the approved faces directory
-                    approved_filename = os.path.join(approved_faces_dir, f"approved_{timestamp}.jpg")
-                    shutil.move(filename, approved_filename)
-                elif approval_status == "deny":
-                    print("Face denied.")
-                    # If denied, delete the saved image
-                    os.remove(filename)
+                    # Process the approval status
+                    if approval_status == "approve":
+                        print("Face approved.")
+                        # Move the face image to the approved faces directory
+                        approved_filename = os.path.join(approved_faces_dir, f"approved_{timestamp}.jpg")
+                        shutil.move(filename, approved_filename)
+                    elif approval_status == "deny":
+                        print("Face denied.")
+                        # If denied, delete the saved image
+                        os.remove(filename)
 
     # Show the camera feed with rectangles drawn around detected faces
     cv2.imshow("Camera", im_rgb)
     
+    # Check for user input to switch modes
+    if cv2.waitKey(1) == ord('t'):  # Press 't' to toggle mode
+        mode = Mode.ACTIVE if mode == Mode.TRAINING else Mode.TRAINING
+        print(f"Switched to {mode.value} mode")
+
     if cv2.waitKey(1) == 27:  # Press 'Esc' to exit
         break
 
