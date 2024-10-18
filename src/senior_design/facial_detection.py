@@ -96,8 +96,9 @@ while True:
     # Capture image from the camera
     im = picam2.capture_array()
 
-    # Convert 4-channel XRGB image to 3-channel RGB
-    im_rgb = im[:, :, :3]
+    # Remove the alpha channel by selecting only the RGB channels (assuming im is in XRGB8888 format)
+    im_rgb = im[:, :, :3]  # Keep only the first three channels (X, R, G)
+
     (h, w) = im_rgb.shape[:2]
 
     # Convert image to a blob for the DNN model
@@ -105,6 +106,7 @@ while True:
     net.setInput(blob)
     detections = net.forward()
 
+    # Process detections
     for i in range(0, detections.shape[2]):
         confidence = detections[0, 0, i, 2]
 
@@ -112,8 +114,11 @@ while True:
             box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
             (startX, startY, endX, endY) = box.astype("int")
 
+            # Draw a rectangle around the detected face
+            cv2.rectangle(im_rgb, (startX, startY), (endX, endY), (0, 255, 0), 2)
+
             # Extract the detected face region of interest (ROI)
-            face_roi = im[startY:endY, startX:endX]
+            face_roi = im_rgb[startY:endY, startX:endX]
             grey_face_roi = cv2.cvtColor(face_roi, cv2.COLOR_BGR2GRAY)
 
             # Check if the detected face is already in the approved faces directory
@@ -140,8 +145,11 @@ while True:
                     # If denied, delete the saved image
                     os.remove(filename)
 
-    cv2.imshow("Camera", im)
+    # Show the camera feed with rectangles drawn around detected faces
+    cv2.imshow("Camera", im_rgb)
+    
     if cv2.waitKey(1) == 27:  # Press 'Esc' to exit
         break
 
 cv2.destroyAllWindows()
+
