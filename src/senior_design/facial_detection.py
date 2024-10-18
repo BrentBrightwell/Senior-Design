@@ -1,19 +1,14 @@
 import cv2
-import os  
+import os
 import time
-from picamera2 import Picamera2
 import numpy as np
 import shutil
 import tkinter as tk
 from tkinter import Label, Button
 from PIL import Image, ImageTk  # Pillow for image handling
 
-face_detector = cv2.CascadeClassifier("classifiers/haarcascade_frontalface_default.xml")
-cv2.startWindowThread()
-
-picam2 = Picamera2()
-picam2.configure(picam2.create_preview_configuration(main={"format": 'XRGB8888', "size": (640, 480)}))
-picam2.start()
+# Load the DNN model
+net = cv2.dnn.readNetFromCaffe("dnn_model/deploy.prototxt", "dnn_model/res10_300x300_ssd_iter_140000.caffemodel")
 
 # Directories for detected and approved faces
 detected_faces_dir = "detected_faces"
@@ -29,17 +24,17 @@ def compare_faces(new_face, approved_faces_dir):
         approved_face = cv2.imread(os.path.join(approved_faces_dir, file), cv2.IMREAD_GRAYSCALE)
         if approved_face is None:
             continue
-        
+
         # Resize both faces for comparison
         approved_face = cv2.resize(approved_face, (new_face.shape[1], new_face.shape[0]))
-        
+
         # Compare histograms (you can improve this by using better face recognition)
         hist_new_face = cv2.calcHist([new_face], [0], None, [256], [0, 256])
         hist_approved_face = cv2.calcHist([approved_face], [0], None, [256], [0, 256])
-        
+
         # Compare histograms (returns a similarity score)
         similarity = cv2.compareHist(hist_new_face, hist_approved_face, cv2.HISTCMP_CORREL)
-        
+
         # If similarity score is high, consider it a match
         if similarity > 0.9:
             return True
@@ -92,39 +87,49 @@ def show_face_in_gui(face_roi):
     root.mainloop()
 
 while True:
+    # Capture image from the camera
     im = picam2.capture_array()
+    (h, w) = im.shape[:2]
 
-    grey = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
-    faces = face_detector.detectMultiScale(grey, 1.1, 5)
+    # Convert image to a blob for the DNN model
+    blob = cv2.dnn.blobFromImage(cv2.resize(im, (300, 300)), 1.0, (300, 300), (104.0, 177.0, 123.0))
+    net.setInput(blob)
+    detections = net.forward()
 
-    for (x, y, w, h) in faces:
-        cv2.rectangle(im, (x, y), (x + w, y + h), (0, 255, 0))
+    for i in range(0, detections.shape[2]):
+        confidence = detections[0, 0, i, 2]
 
-        face_roi = grey[y:y+h, x:x+w]  # Region of interest (detected face)
+        if confidence > 0.7:  # Confidence threshold (adjustable)
+            box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
+            (startX, startY, endX, endY) = box.astype("int")
 
-        # Check if the detected face is already in the approved faces directory
-        if compare_faces(face_roi, approved_faces_dir):
-            print("Approved face detected.")
-        else:
-            # Save the face image in the detected faces directory with a timestamp
-            timestamp = int(time.time())
-            filename = os.path.join(detected_faces_dir, f"face_{timestamp}.jpg")
-            cv2.imwrite(filename, face_roi)  # Save only the detected face portion
-            print("New face detected. Approve or deny.")
+            # Extract the detected face region of interest (ROI)
+            face_roi = im[startY:endY, startX:endX]
+            grey_face_roi = cv2.cvtColor(face_roi, cv2.COLOR_BGR2GRAY)
 
-            # Display the face in the GUI window for approval
-            show_face_in_gui(face_roi)
+            # Check if the detected face is already in the approved faces directory
+            if compare_faces(grey_face_roi, approved_faces_dir):
+                print("Approved face detected.")
+            else:
+                # Save the face image in the detected faces directory with a timestamp
+                timestamp = int(time.time())
+                filename = os.path.join(detected_faces_dir, f"face_{timestamp}.jpg")
+                cv2.imwrite(filename, grey_face_roi)  # Save only the detected face portion
+                print("New face detected. Approve or deny.")
 
-            # Process the approval status
-            if approval_status == "approve":
-                print("Face approved.")
-                # Move the face image to the approved faces directory
-                approved_filename = os.path.join(approved_faces_dir, f"approved_{timestamp}.jpg")
-                shutil.move(filename, approved_filename)
-            elif approval_status == "deny":
-                print("Face denied.")
-                # If denied, delete the saved image
-                os.remove(filename)
+                # Display the face in the GUI window for approval
+                show_face_in_gui(grey_face_roi)
+
+                # Process the approval status
+                if approval_status == "approve":
+                    print("Face approved.")
+                    # Move the face image to the approved faces directory
+                    approved_filename = os.path.join(approved_faces_dir, f"approved_{timestamp}.jpg")
+                    shutil.move(filename, approved_filename)
+                elif approval_status == "deny":
+                    print("Face denied.")
+                    # If denied, delete the saved image
+                    os.remove(filename)
 
     cv2.imshow("Camera", im)
     if cv2.waitKey(1) == 27:  # Press 'Esc' to exit
