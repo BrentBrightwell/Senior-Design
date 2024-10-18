@@ -97,7 +97,7 @@ while True:
     im = picam2.capture_array()
 
     # Remove the alpha channel by selecting only the RGB channels (assuming im is in XRGB8888 format)
-    im_rgb = im[:, :, :3]  # Keep only the first three channels (X, R, G)
+    im_rgb = im[:, :, :3].astype(np.uint8)  # Ensure it's in uint8 format
 
     (h, w) = im_rgb.shape[:2]
 
@@ -113,6 +113,12 @@ while True:
         if confidence > 0.7:  # Confidence threshold (adjustable)
             box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
             (startX, startY, endX, endY) = box.astype("int")
+
+            # Ensure that coordinates are within image dimensions
+            startX = max(startX, 0)
+            startY = max(startY, 0)
+            endX = min(endX, w)
+            endY = min(endY, h)
 
             # Draw a rectangle around the detected face
             cv2.rectangle(im_rgb, (startX, startY), (endX, endY), (0, 255, 0), 2)
@@ -152,4 +158,3 @@ while True:
         break
 
 cv2.destroyAllWindows()
-
