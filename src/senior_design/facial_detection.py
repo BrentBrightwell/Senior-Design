@@ -5,7 +5,13 @@ import numpy as np
 import shutil
 import tkinter as tk
 from tkinter import Label, Button
-from PIL import Image, ImageTk  # Pillow for image handling
+from PIL import Image, ImageTk
+from picamera2 import Picamera2  # Pillow for image handling
+
+# Initalize Picamera2
+picam2 = Picamera2()
+picam2.configure(picam2.create_preview_configuration(main={"format": "XRGB8888", "size": (640, 480)}))
+picam2.start()
 
 # Load the DNN model
 net = cv2.dnn.readNetFromCaffe("dnn_model/deploy.prototxt", "dnn_model/res10_300x300_ssd_iter_140000.caffemodel")
@@ -89,10 +95,13 @@ def show_face_in_gui(face_roi):
 while True:
     # Capture image from the camera
     im = picam2.capture_array()
-    (h, w) = im.shape[:2]
+
+    # Convert 4-channel XRGB image to 3-channel RGB
+    im_rgb = im[:, :, :3]
+    (h, w) = im_rgb.shape[:2]
 
     # Convert image to a blob for the DNN model
-    blob = cv2.dnn.blobFromImage(cv2.resize(im, (300, 300)), 1.0, (300, 300), (104.0, 177.0, 123.0))
+    blob = cv2.dnn.blobFromImage(cv2.resize(im_rgb, (300, 300)), 1.0, (300, 300), (104.0, 177.0, 123.0))
     net.setInput(blob)
     detections = net.forward()
 
