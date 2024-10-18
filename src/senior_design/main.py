@@ -22,8 +22,8 @@ approved_faces_dir = "approved_faces"
 os.makedirs(detected_faces_dir, exist_ok=True)
 os.makedirs(approved_faces_dir, exist_ok=True)
 
-# Initialize mode
 mode = Mode.TRAINING  # Set to either Mode.TRAINING or Mode.ACTIVE
+approval_status = None  # Initialize approval_status
 
 while True:
     # Capture image from the camera
@@ -49,15 +49,12 @@ while True:
             endX = min(endX, w)
             endY = min(endY, h)
 
-            # Draw a rectangle around the detected face
-            cv2.rectangle(im_rgb, (startX, startY), (endX, endY), (0, 255, 0), 2)
-
             # Extract the detected face region of interest (ROI)
             face_roi = im_rgb[startY:endY, startX:endX]
             grey_face_roi = cv2.cvtColor(face_roi, cv2.COLOR_BGR2GRAY)
 
             # Handle detection based on mode
-            handle_detection(grey_face_roi, mode, detected_faces_dir, approved_faces_dir)
+            handle_detection(grey_face_roi, mode, detected_faces_dir, approved_faces_dir, im_rgb, startX, startY, endX, endY, approval_status)
 
     # Show the camera feed with rectangles drawn around detected faces
     cv2.imshow("Camera", im_rgb)

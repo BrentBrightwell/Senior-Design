@@ -30,32 +30,38 @@ def compare_faces(new_face, approved_faces_dir):
             return True
     return False
 
-def handle_detection(grey_face_roi, mode, detected_faces_dir, approved_faces_dir):
-    """Handle the detection of faces based on the current mode."""
-    global approval_status
-    timestamp = int(time.time())
-
+def handle_detection(grey_face_roi, mode, detected_faces_dir, approved_faces_dir, im_rgb, startX, startY, endX, endY, approval_status):
     if mode == Mode.ACTIVE:
+        # In active mode, check for an approved face without GUI
         if compare_faces(grey_face_roi, approved_faces_dir):
+            # Draw a green rectangle for approved faces
+            cv2.rectangle(im_rgb, (startX, startY), (endX, endY), (0, 255, 0), 2)
             print("Approved face detected.")
         else:
+            # Draw a red rectangle for unapproved faces
+            cv2.rectangle(im_rgb, (startX, startY), (endX, endY), (0, 0, 255), 2)
             print("ALERT! Intruder Detected")
     else:  # TRAINING mode
+        # Check if the detected face is already in the approved faces directory
         if compare_faces(grey_face_roi, approved_faces_dir):
             print("Approved face detected.")
         else:
-            # Save the face image for approval
+            # Save the face image in the detected faces directory with a timestamp
+            timestamp = int(time.time())
             filename = os.path.join(detected_faces_dir, f"face_{timestamp}.jpg")
             cv2.imwrite(filename, grey_face_roi)  # Save only the detected face portion
             print("New face detected. Approve or deny.")
 
             # Display the face in the GUI window for approval
-            approval_status = show_face_in_gui(grey_face_roi)
+            show_face_in_gui(grey_face_roi)
 
+            # Process the approval status
             if approval_status == "approve":
                 print("Face approved.")
+                # Move the face image to the approved faces directory
                 approved_filename = os.path.join(approved_faces_dir, f"approved_{timestamp}.jpg")
                 shutil.move(filename, approved_filename)
             elif approval_status == "deny":
                 print("Face denied.")
+                # If denied, delete the saved image
                 os.remove(filename)
