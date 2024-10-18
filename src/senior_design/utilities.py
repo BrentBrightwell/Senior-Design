@@ -31,20 +31,10 @@ def compare_faces(new_face, approved_faces_dir):
     return False
 
 def handle_detection(grey_face_roi, mode, detected_faces_dir, approved_faces_dir, im_rgb, startX, startY, endX, endY, approval_status):
-    if mode == Mode.ACTIVE:
-        # In active mode, check for an approved face without GUI
-        if compare_faces(grey_face_roi, approved_faces_dir):
-            # Draw a green rectangle for approved faces
-            cv2.rectangle(im_rgb, (startX, startY), (endX, endY), (0, 255, 0), 2)
-            print("Approved face detected.")
-        else:
-            # Draw a red rectangle for unapproved faces
-            cv2.rectangle(im_rgb, (startX, startY), (endX, endY), (0, 0, 255), 2)
-            print("ALERT! Intruder Detected")
-    else:  # TRAINING mode
+    if mode == Mode.TRAINING:
         # Check if the detected face is already in the approved faces directory
         if compare_faces(grey_face_roi, approved_faces_dir):
-            print("Approved face detected.")
+            print("Approved face detected.")  # Face is already approved
         else:
             # Save the face image in the detected faces directory with a timestamp
             timestamp = int(time.time())
@@ -52,9 +42,9 @@ def handle_detection(grey_face_roi, mode, detected_faces_dir, approved_faces_dir
             cv2.imwrite(filename, grey_face_roi)  # Save only the detected face portion
             print("New face detected. Approve or deny.")
 
-            # Display the face in the GUI window for approval
-            show_face_in_gui(grey_face_roi)
-
+            # Show the face in the GUI window for approval
+            show_face_in_gui(grey_face_roi)  # Display GUI for user approval
+            
             # Process the approval status
             if approval_status == "approve":
                 print("Face approved.")
@@ -65,3 +55,14 @@ def handle_detection(grey_face_roi, mode, detected_faces_dir, approved_faces_dir
                 print("Face denied.")
                 # If denied, delete the saved image
                 os.remove(filename)
+
+    elif mode == Mode.ACTIVE:
+        # In active mode, check for an approved face without GUI
+        if compare_faces(grey_face_roi, approved_faces_dir):
+            # Draw a green rectangle for approved faces
+            cv2.rectangle(im_rgb, (startX, startY), (endX, endY), (0, 255, 0), 2)
+            print("Approved face detected.")
+        else:
+            # Draw a red rectangle for unapproved faces
+            cv2.rectangle(im_rgb, (startX, startY), (endX, endY), (0, 0, 255), 2)
+            print("ALERT! Intruder Detected")
