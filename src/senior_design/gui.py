@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import Label, Button
 from PIL import Image, ImageTk
+import cv2
 
 def approve_face(root, status_var):
     status_var.set("approve")
@@ -39,3 +40,26 @@ def show_face_in_gui(face_roi):
     root.mainloop()
 
     return status_var.get()
+
+def draw_mode_banner(im_rgb, mode):
+    """Draws a banner at the top of the camera feed showing the current mode."""
+    (h, w) = im_rgb.shape[:2]
+    banner_height = 40  # Height of the banner
+
+    # Draw banner (gray background)
+    cv2.rectangle(im_rgb, (0, 0), (w, banner_height), (50, 50, 50), -1)
+
+    # Define font, size, and text positioning
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    font_scale = 1.0
+    font_color = (255, 255, 255)  # White text
+    thickness = 2
+    text = f"MODE: {mode.value.upper()}"
+    text_size = cv2.getTextSize(text, font, font_scale, thickness)[0]
+    text_x = (w - text_size[0]) // 2
+    text_y = (banner_height + text_size[1]) // 2
+
+    # Put the mode text in the center of the banner
+    cv2.putText(im_rgb, text, (text_x, text_y), font, font_scale, font_color, thickness)
+    
+    return im_rgb
