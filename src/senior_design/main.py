@@ -9,12 +9,12 @@ import shutil
 
 # User-adjustable variables
 CONFIDENCE_THRESHOLD = 0.7  # Face detection confidence
-detected_faces_dir = "detected_faces"
-approved_faces_dir = "approved_faces"
+DETECTED_FACES_DIR = "detected_faces"
+APPROVED_FACES_DIR = "approved_faces"
 
 # Create directories for detected and approved faces
-os.makedirs(detected_faces_dir, exist_ok=True)
-os.makedirs(approved_faces_dir, exist_ok=True)
+os.makedirs(DETECTED_FACES_DIR, exist_ok=True)
+os.makedirs(APPROVED_FACES_DIR, exist_ok=True)
 
 # Initialize Picamera2
 picam2 = Picamera2()
@@ -51,20 +51,19 @@ while True:
             face_roi = im_rgb[startY:endY, startX:endX]
             grey_face_roi = cv2.cvtColor(face_roi, cv2.COLOR_BGR2GRAY)
 
-            if mode == Mode.ACTIVE:
-                # Active mode: Check if face is approved
-                if compare_faces(grey_face_roi, approved_faces_dir):
+            if mode == Mode.ACTIVE: # Active mode: Check if face is approved
+                if compare_faces(grey_face_roi, APPROVED_FACES_DIR):
                     cv2.rectangle(im_rgb, (startX, startY), (endX, endY), (0, 255, 0), 2)
                     print("Approved face detected.")
                 else:
                     cv2.rectangle(im_rgb, (startX, startY), (endX, endY), (0, 0, 255), 2)
                     print("ALERT! Intruder Detected.")
             else:  # Training mode
-                if compare_faces(grey_face_roi, approved_faces_dir):
+                if compare_faces(grey_face_roi, APPROVED_FACES_DIR):
                     print("Approved face detected.")
                 else:
                     timestamp = int(time.time())
-                    filename = os.path.join(detected_faces_dir, f"face_{timestamp}.jpg")
+                    filename = os.path.join(DETECTED_FACES_DIR, f"face_{timestamp}.jpg")
                     cv2.imwrite(filename, grey_face_roi)
                     print("New face detected. Approve or deny.")
 
@@ -72,7 +71,7 @@ while True:
                     approval_status = show_face_in_gui(grey_face_roi)
 
                     if approval_status == "approve":
-                        approved_filename = os.path.join(approved_faces_dir, f"approved_{timestamp}.jpg")
+                        approved_filename = os.path.join(APPROVED_FACES_DIR, f"approved_{timestamp}.jpg")
                         shutil.move(filename, approved_filename)
                         print("Face approved.")
                     elif approval_status == "deny":
