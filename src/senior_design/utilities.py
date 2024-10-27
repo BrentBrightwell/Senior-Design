@@ -1,7 +1,9 @@
 import cv2
 import os
+import time
 import numpy as np
 from enum import Enum
+from gui import show_face_in_gui
 
 # Define modes as an Enum
 class Mode(Enum):
@@ -26,3 +28,21 @@ def compare_faces(new_face, approved_faces_dir):
         if similarity > 0.9:
             return True
     return False
+
+def handle_approval(face_roi, detected_faces_dir, approved_faces_dir):
+    """Handles the approval process for a new face."""
+    timestamp = int(time.time())
+    filename = os.path.join(detected_faces_dir, f"face_{timestamp}.jpg")
+    cv2.imwrite(filename, face_roi)
+    print("New face detected. Approve or deny.")
+
+    # Show the face in the GUI for approval
+    approval_status = show_face_in_gui(face_roi)
+
+    if approval_status == "approve":
+        approved_filename = os.path.join(approved_faces_dir, f"approved_{timestamp}.jpg")
+        shutil.move(filename, approved_filename)
+        print("Face approved.")
+    elif approval_status == "deny":
+        os.remove(filename)
+        print("Face denied.")
