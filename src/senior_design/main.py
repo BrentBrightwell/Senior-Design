@@ -53,22 +53,30 @@ while True:
             face_roi = im_rgb[startY:endY, startX:endX]
             grey_face_roi = cv2.cvtColor(face_roi, cv2.COLOR_BGR2GRAY)
 
-            # Draw the ROI box in both modes
-            cv2.rectangle(im_rgb, (startX, startY), (endX, endY), (0, 255, 0), 2)
+            # Initialize color for ROI box
+            roi_color = (0, 255, 0)  # Default to green (approved)
 
             if mode == Mode.ACTIVE:
                 if compare_faces(grey_face_roi, APPROVED_FACES_DIR):
                     print("Approved face detected.")
                 else:
-                    cv2.rectangle(im_rgb, (startX, startY), (endX, endY), (0, 0, 255), 2)
+                    roi_color = (0, 0, 255)  # Red (intruder)
                     print("ALERT! Intruder Detected.")
             elif mode == Mode.TRAINING:
                 if compare_faces(grey_face_roi, APPROVED_FACES_DIR):
                     print("Approved face detected.")
                 else:
-                    if not approval_in_progress:
+                    # Only initiate approval if there are approved faces in the directory
+                    if not approval_in_progress and os.listdir(APPROVED_FACES_DIR):
                         approval_in_progress = True
-                        initiate_approval(face_roi, DETECTED_FACES_DIR, APPROVED_FACES_DIR, lambda: setattr(approval_in_progress, False))
+                        initiate_approval(face_roi, DETECTED_FACES_DIR, APPROVED_FACES_DIR, on_complete=lambda: setattr(globals(), 'approval_in_progress', False))
+
+                # If there are no approved faces, change the ROI color to blue (neutral)
+                if not os.listdir(APPROVED_FACES_DIR):
+                    roi_color = (255, 0, 0)  # Blue (neutral)
+
+            # Draw the ROI box with the determined color
+            cv2.rectangle(im_rgb, (startX, startY), (endX, endY), roi_color, 2)
 
     # Display the camera feed
     cv2.imshow("Camera", im_rgb)
