@@ -1,9 +1,11 @@
 import cv2
 import os
+import time
 import numpy as np
 from picamera2 import Picamera2
 from utilities import Mode, compare_faces, initiate_approval
-from gui import draw_mode_banner
+from gui import show_face_in_gui, draw_mode_banner
+import shutil
 
 # User-adjustable variables
 CONFIDENCE_THRESHOLD = 0.7  # Face detection confidence
@@ -66,14 +68,14 @@ while True:
                 if compare_faces(grey_face_roi, APPROVED_FACES_DIR):
                     print("Approved face detected.")
                 else:
-                    # Only initiate approval if there are approved faces in the directory
-                    if not approval_in_progress and os.listdir(APPROVED_FACES_DIR):
+                    # Only initiate approval if there are no approved faces and the approval is not in progress
+                    if not approval_in_progress:
                         approval_in_progress = True
                         initiate_approval(face_roi, DETECTED_FACES_DIR, APPROVED_FACES_DIR, on_complete=lambda: setattr(globals(), 'approval_in_progress', False))
 
-                # If there are no approved faces, change the ROI color to blue (neutral)
-                if not os.listdir(APPROVED_FACES_DIR):
-                    roi_color = (255, 0, 0)  # Blue (neutral)
+                    # Change the ROI color to blue if there are no approved faces
+                    if not os.listdir(APPROVED_FACES_DIR):
+                        roi_color = (255, 0, 0)  # Blue (neutral)
 
             # Draw the ROI box with the determined color
             cv2.rectangle(im_rgb, (startX, startY), (endX, endY), roi_color, 2)
