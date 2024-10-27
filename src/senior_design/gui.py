@@ -3,9 +3,11 @@ from tkinter import Label, Button, Entry
 from PIL import Image, ImageTk
 import cv2
 
-def approve_face(root, status_var, first_name, last_name):
-    status_var.set((first_name.get(), last_name.get(), "approve"))
+def approve_face(root, status_var, first_name_entry, last_name_entry):
+    """Set approval status and destroy the GUI."""
+    status_var.set("approve")
     root.destroy()
+    return first_name_entry.get(), last_name_entry.get()
 
 def deny_face(root, status_var):
     status_var.set(("deny",))

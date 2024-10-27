@@ -34,8 +34,8 @@ def handle_approval(face_roi, detected_faces_dir, approved_faces_dir):
     """Handles the approval process for a new face."""
     # Save the detected face temporarily
     timestamp = int(time.time())
-    filename = os.path.join(detected_faces_dir, f"face_{timestamp}.jpg")
-    cv2.imwrite(filename, face_roi)
+    temp_filename = os.path.join(detected_faces_dir, f"face_{timestamp}.jpg")
+    cv2.imwrite(temp_filename, face_roi)
     print("New face detected. Approve or deny.")
 
     # Show the face in the GUI for approval
@@ -48,8 +48,8 @@ def handle_approval(face_roi, detected_faces_dir, approved_faces_dir):
         approved_filename = os.path.join(approved_faces_dir, f"face_{last_name}{first_name}.jpg")
         
         # Move the approved face to the approved directory with the new name
-        shutil.move(filename, approved_filename)
+        shutil.move(temp_filename, approved_filename)
         print(f"Face approved and saved as {approved_filename}.")
     elif approval_status[0] == "deny":
-        os.remove(filename)
+        os.remove(temp_filename)  # Remove the temporary file if denied
         print("Face denied.")
