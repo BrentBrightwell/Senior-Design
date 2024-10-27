@@ -2,6 +2,7 @@ import cv2
 import os
 import time
 import numpy as np
+from threading import Thread
 from enum import Enum
 from gui import show_face_in_gui
 
@@ -29,20 +30,23 @@ def compare_faces(new_face, approved_faces_dir):
             return True
     return False
 
-def handle_approval(face_roi, detected_faces_dir, approved_faces_dir):
-    """Handles the approval process for a new face."""
-    timestamp = int(time.time())
-    filename = os.path.join(detected_faces_dir, f"face_{timestamp}.jpg")
-    cv2.imwrite(filename, face_roi)
-    print("New face detected. Approve or deny.")
+def initiate_approval(face_roi, detected_faces_dir, approved_faces_dir, on_complete):
+    """Starts a new thread to show the approval GUI for a face without pausing the main loop."""
+    def approval_thread():
+        timestamp = int(time.time())
+        filename = os.path.join(detected_faces_dir, f"face_{timestamp}.jpg")
+        cv2.imwrite(filename, face_roi)
+        
+        approval_status = show_face_in_gui(face_roi)
 
-    # Show the face in the GUI for approval
-    approval_status = show_face_in_gui(face_roi)
+        if approval_status == "approve":
+            approved_filename = os.path.join(approved_faces_dir, f"approved_{timestamp}.jpg")
+            os.rename(filename, approved_filename)
+            print("Face approved.")
+        elif approval_status == "deny":
+            os.remove(filename)
+            print("Face denied.")
 
-    if approval_status == "approve":
-        approved_filename = os.path.join(approved_faces_dir, f"approved_{timestamp}.jpg")
-        shutil.move(filename, approved_filename)
-        print("Face approved.")
-    elif approval_status == "deny":
-        os.remove(filename)
-        print("Face denied.")
+        on_complete()
+
+    Thread(target=approval_thread).start()
