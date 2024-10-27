@@ -84,4 +84,8 @@ while True:
     elif key == 27:  # ESC to quit
         break
 
+    # Check if the window was closed
+    if cv2.getWindowProperty("Camera", cv2.WND_PROP_VISIBLE) < 1:
+        break
+
 cv2.destroyAllWindows()
