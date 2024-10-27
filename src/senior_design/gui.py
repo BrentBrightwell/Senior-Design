@@ -22,6 +22,10 @@ def show_face_in_gui(face_roi):
     first_name_var = tk.StringVar()
     last_name_var = tk.StringVar()
 
+    # Error label for feedback
+    error_label = Label(root, text="", fg="red")
+    error_label.grid(row=4, columnspan=2, padx=5, pady=5)
+
     face_image_pil = Image.fromarray(face_roi).resize((200, 200))
     face_image_tk = ImageTk.PhotoImage(face_image_pil)
 
@@ -30,19 +34,38 @@ def show_face_in_gui(face_roi):
     face_label.pack()
 
     # Labels and Entry for First and Last Name
-    Label(root, text="First Name:").pack()
+    Label(root, text="First Name:").grid(row=1, column=0, padx=5, pady=5, sticky="e")
     first_name_entry = Entry(root, textvariable=first_name_var)
-    first_name_entry.pack()
+    first_name_entry.grid(row=1, column=1, padx=5, pady=5)
 
-    Label(root, text="Last Name:").pack()
+    Label(root, text="Last Name:").grid(row=2, column=0, padx=5, pady=5, sticky="e")
     last_name_entry = Entry(root, textvariable=last_name_var)
-    last_name_entry.pack()
+    last_name_entry.grid(row=2, column=1, padx=5, pady=5)
 
-    approve_button = Button(root, text="Approve", command=lambda: approve_face(root, status_var), bg="green", fg="white", width=10)
+    def validate_and_approve():
+        first_name = first_name_var.get().strip()
+        last_name = last_name_var.get().strip()
+
+        # Clear previous error message
+        error_label.config(text="")
+
+        if not first_name or not last_name:
+            error_label.config(text="First and Last name MUST be filled out!")
+            return  # Do not proceed if there's an error
+
+        if " " in first_name or " " in last_name:
+            error_label.config(text="First and Last name cannot include spaces!")
+            return  # Do not proceed if there's an error
+
+        # If validation passes, set approval status and close GUI
+        status_var.set("approve")
+        root.destroy()
+
+    approve_button = Button(root, text="Approve", command=validate_and_approve, bg="green", fg="white", width=10)
     deny_button = Button(root, text="Deny", command=lambda: deny_face(root, status_var), bg="red", fg="white", width=10)
 
-    approve_button.pack(side="left", padx=20, pady=20)
-    deny_button.pack(side="right", padx=20, pady=20)
+    approve_button.grid(row=3, column=0, padx=20, pady=20)
+    deny_button.grid(row=3, column=1, padx=20, pady=20)
 
     root.mainloop()
 
