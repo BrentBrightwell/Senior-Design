@@ -3,14 +3,13 @@ from tkinter import Label, Button, Entry
 from PIL import Image, ImageTk
 import cv2
 
-def approve_face(root, status_var, first_name_entry, last_name_entry):
+def approve_face(root, status_var):
     """Set approval status and destroy the GUI."""
     status_var.set("approve")
     root.destroy()
-    return first_name_entry.get(), last_name_entry.get()
 
 def deny_face(root, status_var):
-    status_var.set(("deny",))
+    status_var.set("deny")
     root.destroy()
 
 def show_face_in_gui(face_roi):
