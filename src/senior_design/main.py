@@ -1,12 +1,9 @@
 import cv2
 import os
-import time
 import numpy as np
 from picamera2 import Picamera2
-from utilities import Mode, compare_faces, handle_approval
+from utilities import Mode, compare_faces, initiate_approval
 from gui import draw_mode_banner
-import threading
-import shutil
 
 # User-adjustable variables
 CONFIDENCE_THRESHOLD = 0.7  # Face detection confidence
@@ -28,12 +25,6 @@ net = cv2.dnn.readNetFromCaffe("dnn_model/deploy.prototxt", "dnn_model/res10_300
 # Initialize mode and approval flag
 mode = Mode.TRAINING
 approval_in_progress = False
-
-def initiate_approval(face_roi):
-    """Thread target to handle the approval GUI without blocking the main loop."""
-    global approval_in_progress
-    handle_approval(face_roi, DETECTED_FACES_DIR, APPROVED_FACES_DIR)
-    approval_in_progress = False
 
 while True:
     # Capture image from the camera
@@ -62,18 +53,22 @@ while True:
             face_roi = im_rgb[startY:endY, startX:endX]
             grey_face_roi = cv2.cvtColor(face_roi, cv2.COLOR_BGR2GRAY)
 
-            if compare_faces(grey_face_roi, APPROVED_FACES_DIR):
-                # Approved face found; show green box
-                cv2.rectangle(im_rgb, (startX, startY), (endX, endY), (0, 255, 0), 2)
-                print("Approved face detected.")
-            else:
-                # Unapproved face handling
-                cv2.rectangle(im_rgb, (startX, startY), (endX, endY), (0, 0, 255), 2)
-                if mode == Mode.ACTIVE:
+            # Draw the ROI box in both modes
+            cv2.rectangle(im_rgb, (startX, startY), (endX, endY), (0, 255, 0), 2)
+
+            if mode == Mode.ACTIVE:
+                if compare_faces(grey_face_roi, APPROVED_FACES_DIR):
+                    print("Approved face detected.")
+                else:
+                    cv2.rectangle(im_rgb, (startX, startY), (endX, endY), (0, 0, 255), 2)
                     print("ALERT! Intruder Detected.")
-                elif mode == Mode.TRAINING and not approval_in_progress:
-                    approval_in_progress = True
-                    threading.Thread(target=initiate_approval, args=(grey_face_roi,)).start()
+            elif mode == Mode.TRAINING:
+                if compare_faces(grey_face_roi, APPROVED_FACES_DIR):
+                    print("Approved face detected.")
+                else:
+                    if not approval_in_progress:
+                        approval_in_progress = True
+                        initiate_approval(face_roi, DETECTED_FACES_DIR, APPROVED_FACES_DIR, lambda: setattr(approval_in_progress, False))
 
     # Display the camera feed
     cv2.imshow("Camera", im_rgb)
@@ -84,6 +79,10 @@ while True:
         mode = Mode.ACTIVE if mode == Mode.TRAINING else Mode.TRAINING
         print(f"Switched to {mode.value} mode")
     elif key == 27:  # ESC to quit
+        break
+
+    # Check if the window was closed
+    if cv2.getWindowProperty("Camera", cv2.WND_PROP_VISIBLE) < 1:
         break
 
 cv2.destroyAllWindows()
