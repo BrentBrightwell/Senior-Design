@@ -8,31 +8,26 @@ from gui import show_face_in_gui, draw_mode_banner
 import shutil
 
 # User-adjustable variables
-CONFIDENCE_THRESHOLD = 0.7  # Face detection confidence
+CONFIDENCE_THRESHOLD = 0.7
 DETECTED_FACES_DIR = "detected_faces"
 APPROVED_FACES_DIR = "approved_faces"
 
-# Create directories for detected and approved faces
 os.makedirs(DETECTED_FACES_DIR, exist_ok=True)
 os.makedirs(APPROVED_FACES_DIR, exist_ok=True)
 
-# Initialize Picamera2
 picam2 = Picamera2()
 picam2.configure(picam2.create_preview_configuration(main={"format": "XRGB8888", "size": (640, 480)}))
 picam2.start()
 
-# Load the DNN model
 net = cv2.dnn.readNetFromCaffe("dnn_model/deploy.prototxt", "dnn_model/res10_300x300_ssd_iter_140000.caffemodel")
-
-# Initialize mode
 mode = Mode.TRAINING
 
-while True:
-    # Capture image from the camera
-    im = picam2.capture_array()
-    im_rgb = im[:, :, :3].astype(np.uint8)  # Remove alpha channel
+approved_face_names = set()
 
-    # Draw the mode banner at the top of the feed
+while True:
+    im = picam2.capture_array()
+    im_rgb = im[:, :, :3].astype(np.uint8)
+
     im_rgb = draw_mode_banner(im_rgb, mode)
 
     (h, w) = im_rgb.shape[:2]
@@ -46,38 +41,32 @@ while True:
             box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
             (startX, startY, endX, endY) = box.astype("int")
 
-            # Ensure bounding box is within image bounds
             startX, startY = max(0, startX), max(0, startY)
             endX, endY = min(w, endX), min(h, endY)
 
-            # Extract detected face and convert to grayscale
             face_roi = im_rgb[startY:endY, startX:endX]
             grey_face_roi = cv2.cvtColor(face_roi, cv2.COLOR_BGR2GRAY)
 
             if mode == Mode.ACTIVE:
-                # Active mode: Check if face is approved
                 if compare_faces(grey_face_roi, APPROVED_FACES_DIR):
                     cv2.rectangle(im_rgb, (startX, startY), (endX, endY), (0, 255, 0), 2)
                     print("Approved face detected.")
                 else:
                     cv2.rectangle(im_rgb, (startX, startY), (endX, endY), (0, 0, 255), 2)
                     print("ALERT! Intruder Detected.")
-            else:  # Training mode
-                # In training mode, compare against approved faces and process unapproved faces
-                if compare_faces(grey_face_roi, APPROVED_FACES_DIR):
-                    print("Approved face detected.")
+            else:
+                if compare_faces(grey_face_roi, APPROVED_FACES_DIR) or f"{startX}_{startY}" in approved_face_names:
+                    cv2.rectangle(im_rgb, (startX, startY), (endX, endY), (0, 255, 0), 2)
                 else:
-                    handle_approval(face_roi, grey_face_roi, DETECTED_FACES_DIR, APPROVED_FACES_DIR, show_face_in_gui)
+                    cv2.rectangle(im_rgb, (startX, startY), (endX, endY), (255, 255, 0), 2)
+                    handle_approval(grey_face_roi, DETECTED_FACES_DIR, APPROVED_FACES_DIR, approved_face_names, f"{startX}_{startY}")
 
-    # Display the camera feed
     cv2.imshow("Camera", im_rgb)
-
-    # Keypress handling
     key = cv2.waitKey(1) & 0xFF
     if key == ord('t'):
         mode = Mode.ACTIVE if mode == Mode.TRAINING else Mode.TRAINING
         print(f"Switched to {mode.value} mode")
-    elif key == 27:  # ESC to quit
+    elif key == 27:
         break
 
 cv2.destroyAllWindows()
