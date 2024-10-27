@@ -20,36 +20,34 @@ def show_face_in_gui(face_roi):
     root.eval('tk::PlaceWindow . center')
 
     status_var = tk.StringVar()
+    first_name_var = tk.StringVar()
+    last_name_var = tk.StringVar()
 
-    # Create labels and entry fields for first and last names
-    Label(root, text="First Name:").pack(pady=(10, 0))
-    first_name = Entry(root)
-    first_name.pack(pady=(0, 5))
-
-    Label(root, text="Last Name:").pack(pady=(10, 0))
-    last_name = Entry(root)
-    last_name.pack(pady=(0, 15))
-
-    # Convert OpenCV image to PIL format
     face_image_pil = Image.fromarray(face_roi).resize((200, 200))
     face_image_tk = ImageTk.PhotoImage(face_image_pil)
 
-    # Create a label to show the face image
     face_label = Label(root, image=face_image_tk)
     face_label.image = face_image_tk
     face_label.pack()
 
-    # Buttons for approval or denial
-    approve_button = Button(root, text="Approve", command=lambda: approve_face(root, status_var, first_name, last_name), bg="green", fg="white", width=10)
+    # Labels and Entry for First and Last Name
+    Label(root, text="First Name:").pack()
+    first_name_entry = Entry(root, textvariable=first_name_var)
+    first_name_entry.pack()
+
+    Label(root, text="Last Name:").pack()
+    last_name_entry = Entry(root, textvariable=last_name_var)
+    last_name_entry.pack()
+
+    approve_button = Button(root, text="Approve", command=lambda: approve_face(root, status_var), bg="green", fg="white", width=10)
     deny_button = Button(root, text="Deny", command=lambda: deny_face(root, status_var), bg="red", fg="white", width=10)
 
     approve_button.pack(side="left", padx=20, pady=20)
     deny_button.pack(side="right", padx=20, pady=20)
 
-    # Wait for user input
     root.mainloop()
 
-    return status_var.get()
+    return status_var.get(), first_name_var.get(), last_name_var.get()  # Return status, first name, and last name
 
 def draw_mode_banner(im_rgb, mode):
     """Draws a banner at the top of the camera feed showing the current mode."""

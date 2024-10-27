@@ -1,8 +1,6 @@
 import cv2
 import os
-import time
 import shutil
-import numpy as np
 from enum import Enum
 from gui import show_face_in_gui
 
@@ -32,24 +30,16 @@ def compare_faces(new_face, approved_faces_dir):
 
 def handle_approval(face_roi, detected_faces_dir, approved_faces_dir):
     """Handles the approval process for a new face."""
-    # Save the detected face temporarily
-    timestamp = int(time.time())
-    temp_filename = os.path.join(detected_faces_dir, f"face_{timestamp}.jpg")
-    cv2.imwrite(temp_filename, face_roi)
+    approval_status, first_name, last_name = show_face_in_gui(face_roi)  # Get approval status and names
+
+    filename = os.path.join(detected_faces_dir, f"face_{first_name}{last_name}.jpg")  # Use first and last name
+    cv2.imwrite(filename, face_roi)
     print("New face detected. Approve or deny.")
 
-    # Show the face in the GUI for approval
-    approval_status = show_face_in_gui(face_roi)
-
-    if approval_status[0] == "approve":
-        first_name = approval_status[1]
-        last_name = approval_status[2]
-        # Create approved filename using the first and last name
-        approved_filename = os.path.join(approved_faces_dir, f"face_{last_name}{first_name}.jpg")
-        
-        # Move the approved face to the approved directory with the new name
-        shutil.move(temp_filename, approved_filename)
-        print(f"Face approved and saved as {approved_filename}.")
-    elif approval_status[0] == "deny":
-        os.remove(temp_filename)  # Remove the temporary file if denied
+    if approval_status == "approve":
+        approved_filename = os.path.join(approved_faces_dir, f"face_{last_name}{first_name}.jpg")  # Use first and last name
+        shutil.move(filename, approved_filename)
+        print("Face approved.")
+    elif approval_status == "deny":
+        os.remove(filename)
         print("Face denied.")
