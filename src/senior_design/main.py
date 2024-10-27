@@ -3,7 +3,7 @@ import os
 import time
 import numpy as np
 from picamera2 import Picamera2
-from utilities import Mode, compare_faces
+from utilities import Mode, compare_faces, handle_approval
 from gui import show_face_in_gui, draw_mode_banner
 import shutil
 
@@ -54,7 +54,8 @@ while True:
             face_roi = im_rgb[startY:endY, startX:endX]
             grey_face_roi = cv2.cvtColor(face_roi, cv2.COLOR_BGR2GRAY)
 
-            if mode == Mode.ACTIVE: # Active mode: Check if face is approved
+            if mode == Mode.ACTIVE:
+                # Active mode: Check if face is approved
                 if compare_faces(grey_face_roi, APPROVED_FACES_DIR):
                     cv2.rectangle(im_rgb, (startX, startY), (endX, endY), (0, 255, 0), 2)
                     print("Approved face detected.")
@@ -62,24 +63,11 @@ while True:
                     cv2.rectangle(im_rgb, (startX, startY), (endX, endY), (0, 0, 255), 2)
                     print("ALERT! Intruder Detected.")
             else:  # Training mode
+                # In training mode, compare against approved faces and process unapproved faces
                 if compare_faces(grey_face_roi, APPROVED_FACES_DIR):
                     print("Approved face detected.")
                 else:
-                    timestamp = int(time.time())
-                    filename = os.path.join(DETECTED_FACES_DIR, f"face_{timestamp}.jpg")
-                    cv2.imwrite(filename, grey_face_roi)
-                    print("New face detected. Approve or deny.")
-
-                    # Show the face in the GUI for approval
-                    approval_status = show_face_in_gui(grey_face_roi)
-
-                    if approval_status == "approve":
-                        approved_filename = os.path.join(APPROVED_FACES_DIR, f"approved_{timestamp}.jpg")
-                        shutil.move(filename, approved_filename)
-                        print("Face approved.")
-                    elif approval_status == "deny":
-                        os.remove(filename)
-                        print("Face denied.")
+                    handle_approval(face_roi, grey_face_roi, DETECTED_FACES_DIR, APPROVED_FACES_DIR, show_face_in_gui)
 
     # Display the camera feed
     cv2.imshow("Camera", im_rgb)
