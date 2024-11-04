@@ -15,7 +15,7 @@ def deny_face(root, status_var):
 def show_face_in_gui(face_roi):
     root = tk.Tk()
     root.title("Face Approval")
-    root.geometry("500x400")  # Increase the window size for better fit
+    root.geometry("350x420")
     root.eval('tk::PlaceWindow . center')
 
     status_var = tk.StringVar()
