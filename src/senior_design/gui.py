@@ -89,13 +89,16 @@ def validate_and_approve(first_name_var, last_name_var, status_var, error_label)
     # Clear previous error message
     error_label.config(text="")
 
+    # Check if either field is empty
     if not first_name or not last_name:
         error_label.config(text="First and Last name MUST be filled out!")
         return False  # Validation failed
 
+    # Check for spaces within the names (not just leading/trailing)
     if " " in first_name or " " in last_name:
         error_label.config(text="First and Last name cannot include spaces!")
         return False  # Validation failed
 
-    status_var.set("approve")  # Set approval status
+    # If validation passes, set approval status
+    status_var.set("approve")
     return True  # Validation succeeded
