@@ -15,7 +15,7 @@ def deny_face(root, status_var):
 def show_face_in_gui(face_roi):
     root = tk.Tk()
     root.title("Face Approval")
-    root.geometry("400x300")
+    root.geometry("500x400")  # Increase the window size for better fit
     root.eval('tk::PlaceWindow . center')
 
     status_var = tk.StringVar()
@@ -24,23 +24,23 @@ def show_face_in_gui(face_roi):
 
     # Error label for feedback
     error_label = Label(root, text="", fg="red")
-    error_label.grid(row=4, columnspan=2, padx=5, pady=5)
+    error_label.grid(row=4, columnspan=2, pady=5)
 
     # Convert the face ROI to a PIL Image and then to a PhotoImage
     face_image_pil = Image.fromarray(face_roi).resize((200, 200))
     face_image_tk = ImageTk.PhotoImage(face_image_pil)
 
-    # Use grid for the face label as well
+    # Center the face image at the top
     face_label = Label(root, image=face_image_tk)
     face_label.image = face_image_tk
-    face_label.grid(row=0, columnspan=2, padx=5, pady=5)
+    face_label.grid(row=0, column=0, columnspan=2, padx=5, pady=10)
 
-    # Labels and Entry for First and Last Name
-    Label(root, text="First Name:").grid(row=1, column=0, padx=5, pady=5, sticky="e")
+    # Labels and Entry fields for First and Last Name
+    Label(root, text="First Name:", anchor="e").grid(row=1, column=0, padx=5, pady=5, sticky="e")
     first_name_entry = Entry(root, textvariable=first_name_var)
     first_name_entry.grid(row=1, column=1, padx=5, pady=5)
 
-    Label(root, text="Last Name:").grid(row=2, column=0, padx=5, pady=5, sticky="e")
+    Label(root, text="Last Name:", anchor="e").grid(row=2, column=0, padx=5, pady=5, sticky="e")
     last_name_entry = Entry(root, textvariable=last_name_var)
     last_name_entry.grid(row=2, column=1, padx=5, pady=5)
 
@@ -48,12 +48,14 @@ def show_face_in_gui(face_roi):
         if validate_and_approve(first_name_var, last_name_var, status_var, error_label):
             root.destroy()
 
+    # Approve and Deny buttons with increased padding for better spacing
     approve_button = Button(root, text="Approve", command=approve_face_action, bg="green", fg="white", width=10)
     deny_button = Button(root, text="Deny", command=lambda: deny_face(root, status_var), bg="red", fg="white", width=10)
 
     approve_button.grid(row=3, column=0, padx=20, pady=20)
     deny_button.grid(row=3, column=1, padx=20, pady=20)
 
+    # Start the GUI main loop
     root.mainloop()
 
     return status_var.get(), first_name_var.get(), last_name_var.get()
