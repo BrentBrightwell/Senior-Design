@@ -3,13 +3,15 @@ import os
 import numpy as np
 from picamera2 import Picamera2
 from utilities import Mode, compare_faces, handle_approval
-from gui import draw_mode_banner
+from gui import draw_mode_banner, update_temp_humidity_box
 import threading
+import time
 
 # User-adjustable variables
 CONFIDENCE_THRESHOLD = 0.7  # Face detection confidence
 DETECTED_FACES_DIR = "detected_faces"
 APPROVED_FACES_DIR = "approved_faces"
+TEMP_HUMID_UPDATE_INTERVAL = 1.0  # Update interval for temperature and humidity (in seconds)
 
 # Create directories for detected and approved faces
 os.makedirs(DETECTED_FACES_DIR, exist_ok=True)
@@ -26,6 +28,7 @@ net = cv2.dnn.readNetFromCaffe("dnn_model/deploy.prototxt", "dnn_model/res10_300
 # Initialize mode and approval flag
 mode = Mode.TRAINING
 approval_in_progress = False
+last_temp_humid_update_time = 0  # Track last update time
 
 def initiate_approval(face_roi):
     """Thread target to handle the approval GUI without blocking the main loop."""
@@ -73,7 +76,15 @@ while True:
                     approval_in_progress = True
                     threading.Thread(target=initiate_approval, args=(grey_face_roi,)).start()
 
-    # Display the camera feed
+    # Update temperature and humidity display based on interval
+    current_time = time.time()
+    if current_time - last_temp_humid_update_time >= TEMP_HUMID_UPDATE_INTERVAL:
+        im_rgb = update_temp_humidity_box(im_rgb)
+        last_temp_humid_update_time = current_time
+
+    # Display the camera feed with a fixed window size
+    cv2.namedWindow("Camera", cv2.WINDOW_NORMAL)
+    cv2.resizeWindow("Camera", 800, 600)
     cv2.imshow("Camera", im_rgb)
 
     # Keypress handling
