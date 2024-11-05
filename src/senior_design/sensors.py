@@ -7,7 +7,7 @@ sensor = adafruit_ahtx0.AHTx0(i2c)
 sensor.calibrate
 
 def read_temperature_humidity():
-    temp_f = sensor.temperature * 1.8 + 32
+    temp_f = sensor.temperature * 1.8 + 32  # Convert Celsius to Fahrenheit
     humid = sensor.relative_humidity
 
     return round(temp_f, 2), round(humid, 2)

@@ -3,7 +3,7 @@ import os
 import numpy as np
 from picamera2 import Picamera2
 from utilities import Mode, compare_faces, handle_approval
-from gui import draw_mode_banner, get_temp_humidity
+from gui import draw_mode_banner
 import threading
 
 # User-adjustable variables
@@ -72,15 +72,6 @@ while True:
                 elif mode == Mode.TRAINING and not approval_in_progress:
                     approval_in_progress = True
                     threading.Thread(target=initiate_approval, args=(grey_face_roi,)).start()
-
-    # Get the temperature and humidity data
-    temperature, humidity = get_temp_humidity()
-    if temperature is not None and humidity is not None:
-        # Display the temperature and humidity on the image
-        temp_text = f"Temp (F): {temperature:.1f}"
-        humidity_text = f"Humidity: {humidity:.1f}%"
-        cv2.putText(im_rgb, temp_text, (10, h - 40), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1)
-        cv2.putText(im_rgb, humidity_text, (10, h - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1)
 
     # Display the camera feed
     cv2.imshow("Camera", im_rgb)

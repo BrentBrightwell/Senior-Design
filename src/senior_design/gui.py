@@ -3,11 +3,6 @@ from tkinter import Label, Button, Entry
 from PIL import Image, ImageTk
 import cv2
 from sensors import read_temperature_humidity
-import time
-
-# Global variable for update interval (in seconds)
-UPDATE_INTERVAL = 2  # Adjust this value to control update frequency
-_last_update_time = 0  # Internal variable to track the last update time
 
 def approve_face(root, status_var):
     """Set approval status and destroy the GUI."""
@@ -17,9 +12,6 @@ def approve_face(root, status_var):
 def deny_face(root, status_var):
     status_var.set("deny")
     root.destroy()
-
-# Temperature and humidity label setup
-temp_humidity_label = None
 
 def show_face_in_gui(face_roi):
     root = tk.Tk()
@@ -70,7 +62,7 @@ def show_face_in_gui(face_roi):
     return status_var.get(), first_name_var.get(), last_name_var.get()
 
 def draw_mode_banner(im_rgb, mode):
-    """Draws a banner at the top of the camera feed showing the current mode."""
+    """Draws a banner at the top of the camera feed and displays temperature and humidity at the bottom right."""
     (h, w) = im_rgb.shape[:2]
     banner_height = 40  # Height of the banner
 
@@ -89,42 +81,23 @@ def draw_mode_banner(im_rgb, mode):
 
     # Put the mode text in the center of the banner
     cv2.putText(im_rgb, text, (text_x, text_y), font, font_scale, font_color, thickness)
-    
+
+    # Get temperature and humidity readings
+    temp, humid = read_temperature_humidity()
+
+    # Draw the temperature/humidity box at the bottom right
+    box_width, box_height = 180, 50
+    box_x = w - box_width - 10
+    box_y = h - box_height - 10
+    cv2.rectangle(im_rgb, (box_x, box_y), (box_x + box_width, box_y + box_height), (255, 255, 255), -1)
+
+    # Display the temperature and humidity in the box
+    text_temp = f"Temperature: {temp} F"
+    text_humid = f"Humidity: {humid} %"
+    cv2.putText(im_rgb, text_temp, (box_x + 10, box_y + 20), font, 0.5, (0, 0, 0), 1)
+    cv2.putText(im_rgb, text_humid, (box_x + 10, box_y + 40), font, 0.5, (0, 0, 0), 1)
+
     return im_rgb
-
-def update_temp_humidity(root, label):
-    """Fetches temperature and humidity data based on the defined interval."""
-    global _last_update_time
-    current_time = time.time()
-    
-    # Only fetch data if enough time has passed since the last update
-    if current_time - _last_update_time >= UPDATE_INTERVAL:
-        temperature, humidity = read_temperature_humidity()
-        _last_update_time = current_time
-        return temperature, humidity
-    return None, None
-
-def get_temp_humidity():
-    """Fetches temperature and humidity data based on the defined interval."""
-    global _last_update_time
-    current_time = time.time()
-    
-    # Only fetch data if enough time has passed since the last update
-    if current_time - _last_update_time >= UPDATE_INTERVAL:
-        temperature, humidity = read_temperature_humidity()
-        _last_update_time = current_time
-        return temperature, humidity
-    return None, None
-
-def initialize_temp_humidity_display(root):
-    """Initializes the temperature and humidity display label on the GUI."""
-    global temp_humidity_label
-    temp_humidity_label = Label(root, text="", bg="white", fg="black", font=("Arial", 10))
-    temp_humidity_label.pack(side="bottom", anchor="se", padx=5, pady=5)
-
-    # Start the update loop
-    update_temp_humidity(root, temp_humidity_label)
-
 def validate_and_approve(first_name_var, last_name_var, status_var, error_label):
     """Validates the input and sets the approval status if valid."""
     first_name = first_name_var.get().strip()
