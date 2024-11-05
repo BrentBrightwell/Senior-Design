@@ -7,11 +7,7 @@ sensor = adafruit_ahtx0.AHTx0(i2c)
 sensor.calibrate
 
 def read_temperature_humidity():
-    temp = sensor.temperature
-    humid = sensor._humidity
+    temp_f = sensor.temperature * 1.8 + 32
+    humid = sensor.relative_humidity
 
-    if temp is not None and temp is not None:
-        return round(temp, 2), round(humid, 2)
-    else:
-        print("Failed to retrieve data from sensor, please check connections.")
-        return None, None
+    return round(temp_f, 2), round(humid, 2)
