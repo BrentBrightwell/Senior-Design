@@ -3,9 +3,11 @@ from tkinter import Label, Button, Entry
 from PIL import Image, ImageTk
 import cv2
 from sensors import read_temperature_humidity
+import time
 
 # Global variable for update interval (in seconds)
 UPDATE_INTERVAL = 2  # Adjust this value to control update frequency
+_last_update_time = 0  # Internal variable to track the last update time
 
 def approve_face(root, status_var):
     """Set approval status and destroy the GUI."""
@@ -91,12 +93,28 @@ def draw_mode_banner(im_rgb, mode):
     return im_rgb
 
 def update_temp_humidity(root, label):
-    """Periodically updates the temperature and humidity values in the label."""
-    temperature, humidity = read_temperature_humidity()
-    if temperature is not None and humidity is not None:
-        label.config(text=f"temperature: {temperature} F\nhumidity: {humidity} %")
-    # Schedule the next update
-    root.after(UPDATE_INTERVAL * 1000, update_temp_humidity, root, label)
+    """Fetches temperature and humidity data based on the defined interval."""
+    global _last_update_time
+    current_time = time.time()
+    
+    # Only fetch data if enough time has passed since the last update
+    if current_time - _last_update_time >= UPDATE_INTERVAL:
+        temperature, humidity = read_temperature_humidity()
+        _last_update_time = current_time
+        return temperature, humidity
+    return None, None
+
+def get_temp_humidity():
+    """Fetches temperature and humidity data based on the defined interval."""
+    global _last_update_time
+    current_time = time.time()
+    
+    # Only fetch data if enough time has passed since the last update
+    if current_time - _last_update_time >= UPDATE_INTERVAL:
+        temperature, humidity = read_temperature_humidity()
+        _last_update_time = current_time
+        return temperature, humidity
+    return None, None
 
 def initialize_temp_humidity_display(root):
     """Initializes the temperature and humidity display label on the GUI."""
