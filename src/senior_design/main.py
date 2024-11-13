@@ -25,9 +25,10 @@ picam2.start()
 # Load the DNN model
 net = cv2.dnn.readNetFromCaffe("resources/dnn_model/deploy.prototxt", "resources/dnn_model/res10_300x300_ssd_iter_140000.caffemodel")
 
-# Intialize event acknowledgment 
+# Initialize event acknowledgment 
 alert_acknowledged = threading.Event()
 intruder_start_time = None
+intruder_alert_active = False
 
 # Initialize mode and approval flag
 mode = Mode.TRAINING
@@ -70,6 +71,7 @@ while True:
                 # Approved face found; show green box
                 cv2.rectangle(im_rgb, (startX, startY), (endX, endY), (0, 255, 0), 2)
                 intruder_start_time = None
+                intruder_alert_active = False
                 alert_acknowledged.clear()
                 print("Approved face detected.")
             else:
@@ -81,6 +83,8 @@ while True:
                     elif time.time() - intruder_start_time >= INTRUDER_DETECTION_THRESHOLD:
                         # Intruder alert trigger
                         if not alert_acknowledged.is_set():
+                            intruder_alert_active = True
+                            alert_acknowledged.clear()
                             threading.Thread(target=play_alert_sound, args=(alert_acknowledged,)).start()
                             threading.Thread(target=show_intruder_alert, args=(alert_acknowledged,)).start()
                     print("ALERT! Intruder Detected.")
@@ -100,7 +104,7 @@ while True:
         break
 
     # Check if the window was closed
-    if cv2.getWindowProperty("Camera", cv2.WND_PROP_VISIBLE) < 1:
+    if cv2.getWindowProperty("Security Feed", cv2.WND_PROP_VISIBLE) < 1:
         break
 
 cv2.destroyAllWindows()

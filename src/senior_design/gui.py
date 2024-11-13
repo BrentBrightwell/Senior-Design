@@ -142,9 +142,12 @@ def show_intruder_alert(alert_acknowledged):
     # Add an acknowledgment button
     def acknowledge():
         alert_acknowledged.set()  # Signal acknowledgment
+        global intruder_alert_active
+        intruder_alert_active = False  # Reset the alert flag
         root.destroy()
 
     ack_button = tk.Button(root, text="Acknowledge", command=acknowledge, bg="green", fg="white", font=("Arial", 12))
     ack_button.pack(pady=20)
 
     root.mainloop()
+
