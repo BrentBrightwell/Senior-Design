@@ -1,9 +1,10 @@
 import cv2
 import os
+import time
 import numpy as np
 from picamera2 import Picamera2
-from utilities import Mode, compare_faces, handle_approval
-from gui import draw_banners
+from utilities import Mode, compare_faces, handle_approval, play_alert_sound
+from gui import draw_banners, show_intruder_alert
 import threading
 
 # User-adjustable variables
@@ -21,7 +22,7 @@ picam2.configure(picam2.create_preview_configuration(main={"format": "XRGB8888",
 picam2.start()
 
 # Load the DNN model
-net = cv2.dnn.readNetFromCaffe("dnn_model/deploy.prototxt", "dnn_model/res10_300x300_ssd_iter_140000.caffemodel")
+net = cv2.dnn.readNetFromCaffe("resources/dnn_model/deploy.prototxt", "resources/dnn_model/res10_300x300_ssd_iter_140000.caffemodel")
 
 # Initialize mode and approval flag
 mode = Mode.TRAINING
