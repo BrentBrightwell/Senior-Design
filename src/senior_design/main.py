@@ -3,7 +3,7 @@ import os
 import numpy as np
 from picamera2 import Picamera2
 from utilities import Mode, compare_faces, handle_approval
-from gui import draw_mode_banner
+from gui import draw_banners
 import threading
 
 # User-adjustable variables
@@ -39,7 +39,7 @@ while True:
     im_rgb = im[:, :, :3].astype(np.uint8)  # Remove alpha channel
 
     # Draw the mode banner at the top of the feed
-    im_rgb = draw_mode_banner(im_rgb, mode)
+    im_rgb = draw_banners(im_rgb, mode)
 
     (h, w) = im_rgb.shape[:2]
     blob = cv2.dnn.blobFromImage(cv2.resize(im_rgb, (300, 300)), 1.0, (300, 300), (104.0, 177.0, 123.0))

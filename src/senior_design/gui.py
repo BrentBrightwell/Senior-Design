@@ -6,6 +6,9 @@ import cv2
 from sensors import read_temperature_humidity
 
 SENSOR_UPDATE_INTERVAL = 5 #in seconds
+last_sensor_update_time = 0
+last_temp, last_humid = None, None  # Variables to hold last fetched values
+
 
 def approve_face(root, status_var):
     """Set approval status and destroy the GUI."""
@@ -64,8 +67,8 @@ def show_face_in_gui(face_roi):
 
     return status_var.get(), first_name_var.get(), last_name_var.get()
 
-def draw_mode_banner(im_rgb, mode):
-    global last_sensor_update_time
+def draw_banners(im_rgb, mode):
+    global last_sensor_update_time, last_temp, last_humid
     current_time = time.time()
 
     # Draw the mode banner
@@ -85,19 +88,21 @@ def draw_mode_banner(im_rgb, mode):
 
     # Check if the interval has passed before updating sensor data
     if current_time - last_sensor_update_time > SENSOR_UPDATE_INTERVAL:
-        temp, humid = read_temperature_humidity()
+        last_temp, last_humid = read_temperature_humidity()
         last_sensor_update_time = current_time  # Reset the last update time
-    else:
-        temp, humid = None, None  # Retain the last displayed values
 
-    # Draw the temperature/humidity box
-    if temp is not None and humid is not None:
-        box_width, box_height = 180, 50
-        box_x = w - box_width - 10
-        box_y = h - box_height - 10
-        cv2.rectangle(im_rgb, (box_x, box_y), (box_x + box_width, box_y + box_height), (255, 255, 255), -1)
-        cv2.putText(im_rgb, f"Temperature: {temp} F", (box_x + 10, box_y + 20), font, 0.5, (0, 0, 0), 1)
-        cv2.putText(im_rgb, f"Humidity: {humid} %", (box_x + 10, box_y + 40), font, 0.5, (0, 0, 0), 1)
+    # Draw the temperature/humidity box at the bottom right
+    box_width, box_height = 180, 50
+    box_x = w - box_width - 10
+    box_y = h - box_height - 10
+    cv2.rectangle(im_rgb, (box_x, box_y), (box_x + box_width, box_y + box_height), (255, 255, 255), -1)
+
+    # Display the last fetched temperature and humidity in the box
+    if last_temp is not None and last_humid is not None:
+        text_temp = f"Temperature: {last_temp} F"
+        text_humid = f"Humidity: {last_humid} %"
+        cv2.putText(im_rgb, text_temp, (box_x + 10, box_y + 20), font, 0.5, (0, 0, 0), 1)
+        cv2.putText(im_rgb, text_humid, (box_x + 10, box_y + 40), font, 0.5, (0, 0, 0), 1)
 
     return im_rgb
 
