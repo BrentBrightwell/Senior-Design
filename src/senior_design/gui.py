@@ -127,3 +127,24 @@ def validate_and_approve(first_name_var, last_name_var, status_var, error_label)
     # If validation passes, set approval status
     status_var.set("approve")
     return True  # Validation succeeded
+
+def show_intruder_alert(alert_acknowledged):
+    """Displays an intruder alert GUI with acknowledgment button."""
+    root = tk.Tk()
+    root.title("INTRUDER ALERT")
+    root.geometry("300x200")
+    root.eval('tk::PlaceWindow . center')
+
+    # Display alert message
+    alert_label = tk.Label(root, text="INTRUDER ALERT\nCHECK SYSTEMS!", font=("Arial", 16), fg="red")
+    alert_label.pack(pady=20)
+
+    # Add an acknowledgment button
+    def acknowledge():
+        alert_acknowledged.set()  # Signal acknowledgment
+        root.destroy()
+
+    ack_button = tk.Button(root, text="Acknowledge", command=acknowledge, bg="green", fg="white", font=("Arial", 12))
+    ack_button.pack(pady=20)
+
+    root.mainloop()
