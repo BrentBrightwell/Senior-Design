@@ -9,6 +9,7 @@ import threading
 
 # User-adjustable variables
 CONFIDENCE_THRESHOLD = 0.7  # Face detection confidence
+INTRUDER_DETECTION_THRESHOLD = 1.0  # in seconds
 DETECTED_FACES_DIR = "detected_faces"
 APPROVED_FACES_DIR = "approved_faces"
 
@@ -23,6 +24,10 @@ picam2.start()
 
 # Load the DNN model
 net = cv2.dnn.readNetFromCaffe("resources/dnn_model/deploy.prototxt", "resources/dnn_model/res10_300x300_ssd_iter_140000.caffemodel")
+
+# Intialize event acknowledgment 
+alert_acknowledged = threading.Event()
+intruder_start_time = None
 
 # Initialize mode and approval flag
 mode = Mode.TRAINING
@@ -64,18 +69,27 @@ while True:
             if compare_faces(grey_face_roi, APPROVED_FACES_DIR):
                 # Approved face found; show green box
                 cv2.rectangle(im_rgb, (startX, startY), (endX, endY), (0, 255, 0), 2)
+                intruder_start_time = None
+                alert_acknowledged.clear()
                 print("Approved face detected.")
             else:
                 # Unapproved face handling
                 cv2.rectangle(im_rgb, (startX, startY), (endX, endY), (0, 0, 255), 2)
                 if mode == Mode.ACTIVE:
+                    if intruder_start_time is None:
+                        intruder_start_time = time.time()
+                    elif time.time() - intruder_start_time >= INTRUDER_DETECTION_THRESHOLD:
+                        # Intruder alert trigger
+                        if not alert_acknowledged.is_set():
+                            threading.Thread(target=play_alert_sound, args=(alert_acknowledged,)).start()
+                            threading.Thread(target=show_intruder_alert, args=(alert_acknowledged,)).start()
                     print("ALERT! Intruder Detected.")
                 elif mode == Mode.TRAINING and not approval_in_progress:
                     approval_in_progress = True
                     threading.Thread(target=initiate_approval, args=(grey_face_roi,)).start()
 
     # Display the camera feed
-    cv2.imshow("Camera", im_rgb)
+    cv2.imshow("Security Feed", im_rgb)
 
     # Keypress handling
     key = cv2.waitKey(1) & 0xFF
