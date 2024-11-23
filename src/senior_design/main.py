@@ -5,6 +5,7 @@ import numpy as np
 from picamera2 import Picamera2
 from utilities import Mode, compare_faces, handle_approval, play_alert_sound
 from gui import draw_banners, show_intruder_alert
+from sensors import initialize_motion_sensor
 import threading
 
 # User-adjustable variables
@@ -21,6 +22,9 @@ os.makedirs(APPROVED_FACES_DIR, exist_ok=True)
 picam2 = Picamera2()
 picam2.configure(picam2.create_preview_configuration(main={"format": "XRGB8888", "size": (640, 480)}))
 picam2.start()
+
+# Initialize motion sensor
+initialize_motion_sensor()
 
 # Load the DNN model
 net = cv2.dnn.readNetFromCaffe("resources/dnn_model/deploy.prototxt", "resources/dnn_model/res10_300x300_ssd_iter_140000.caffemodel")
