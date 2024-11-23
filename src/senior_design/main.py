@@ -5,7 +5,7 @@ import numpy as np
 from picamera2 import Picamera2
 from utilities import Mode, compare_faces, handle_approval, play_alert_sound
 from gui import draw_banners, show_intruder_alert
-from sensors import initialize_motion_sensor
+from sensors import initialize_motion_sensor, motion_detected
 import threading
 
 # User-adjustable variables
@@ -23,9 +23,6 @@ picam2 = Picamera2()
 picam2.configure(picam2.create_preview_configuration(main={"format": "XRGB8888", "size": (640, 480)}))
 picam2.start()
 
-# Initialize motion sensor
-initialize_motion_sensor()
-
 # Load the DNN model
 net = cv2.dnn.readNetFromCaffe("resources/dnn_model/deploy.prototxt", "resources/dnn_model/res10_300x300_ssd_iter_140000.caffemodel")
 
@@ -33,6 +30,10 @@ net = cv2.dnn.readNetFromCaffe("resources/dnn_model/deploy.prototxt", "resources
 alert_acknowledged = threading.Event()
 intruder_start_time = None
 intruder_alert_active = False
+
+# Start the motion sensor thread
+motion_thread = threading.Thread(target=initialize_motion_sensor, daemon=True)
+motion_thread.start()
 
 # Initialize mode and approval flag
 mode = Mode.TRAINING
@@ -45,6 +46,9 @@ def initiate_approval(face_roi):
     approval_in_progress = False
 
 while True:
+    if motion_detected:
+        print("Motion detected in main loop!")
+
     # Capture image from the camera
     im = picam2.capture_array()
     im_rgb = im[:, :, :3].astype(np.uint8)  # Remove alpha channel
