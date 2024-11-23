@@ -7,7 +7,6 @@ from enum import Enum
 from gui import show_face_in_gui
 
 
-pygame.mixer.init()
 ALERT_SOUND_PATH = "resources/intruder_alert.wav"
 
 # Define modes as an Enum
@@ -54,7 +53,12 @@ def handle_approval(face_roi, detected_faces_dir, approved_faces_dir):
 
 def play_alert_sound(alert_acknowledged):
     """Plays an alert sound on loop until acknowledged."""
+    pygame.mixer.init()
     alert_sound = pygame.mixer.Sound(ALERT_SOUND_PATH)
+    
     while not alert_acknowledged.is_set():
         alert_sound.play()
-        time.sleep(2)  # 2-second delay between plays
+        time.sleep(8)  # in seconds
+
+    alert_sound.stop()
+    pygame.mixer.quit()
