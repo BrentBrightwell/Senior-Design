@@ -90,7 +90,7 @@ while True:
                         intruder_start_time = time.time()
                     elif time.time() - intruder_start_time >= INTRUDER_DETECTION_THRESHOLD:
                         # Intruder alert trigger
-                        if not alert_acknowledged.is_set():
+                        if not intruder_alert_active:
                             intruder_alert_active = True
                             alert_acknowledged.clear()
                             threading.Thread(target=play_alert_sound, args=(alert_acknowledged,)).start()
@@ -99,6 +99,10 @@ while True:
                 elif mode == Mode.TRAINING and not approval_in_progress:
                     approval_in_progress = True
                     threading.Thread(target=initiate_approval, args=(grey_face_roi,)).start()
+    
+    if alert_acknowledged.is_set():
+        intruder_alert_active = False
+        alert_acknowledged.clear()
 
     # Display the camera feed
     cv2.imshow("Security Feed", im_rgb)
