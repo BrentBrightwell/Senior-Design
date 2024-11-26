@@ -129,37 +129,34 @@ def validate_and_approve(first_name_var, last_name_var, status_var, error_label)
     status_var.set("approve")
     return True  # Validation succeeded
 
-def acknowledge_alert(alert_window):
+def acknowledge_alert(alert_window, alert_acknowledged):
     global intruder_alert_active
-    #from main import alert_acknowledged
-    #alert_acknowledged.set()
+    alert_acknowledged.set()
     intruder_alert_active = False
     stop_alert_sound_event.set()
     stop_siren()
     stop_video_recording()
     alert_window.destroy()
 
-#def trigger_siren_if_not_acknowledged(alert_window):
-    #from main import alert_acknowledged
-    #global intruder_alert_active
+def trigger_siren_if_not_acknowledged(alert_window, alert_acknowledged):
+    global intruder_alert_active
 
-    #for _ in range(10):
-    #    if alert_acknowledged.is_set():
-    #        return
-    #    time.sleep(1)
+    for _ in range(10):
+        if alert_acknowledged.is_set():
+            return
+        time.sleep(1)
 
-    #if not alert_acknowledged.is_set():
-    #    trigger_siren()
+    if not alert_acknowledged.is_set():
+        trigger_siren()
 
-def show_intruder_alert():
-    #from main import alert_acknowledged
+def show_intruder_alert(alert_acknowledged):
     global intruder_alert_active  # Ensure we modify the global variable
 
     if intruder_alert_active:
         return  # Avoid triggering another alert if one is already active
 
     intruder_alert_active = True  # Mark alert as active
-    #alert_acknowledged.clear()
+    alert_acknowledged.clear()
 
     # Create the GUI for the alert
     alert_window = tk.Toplevel()
@@ -175,4 +172,4 @@ def show_intruder_alert():
     # Play the alert sound on a loop
     threading.Thread(target=play_alert_sound, daemon=True).start()
 
-   # threading.Thread(target=trigger_siren_if_not_acknowledged, args=(alert_window,), daemon=True).start()
+    threading.Thread(target=trigger_siren_if_not_acknowledged, args=(alert_window,), daemon=True).start()

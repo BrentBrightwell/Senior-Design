@@ -94,7 +94,7 @@ while True:
                             intruder_alert_active = True
                             alert_acknowledged.clear()
                             threading.Thread(target=play_alert_sound, args=(alert_acknowledged,)).start()
-                            threading.Thread(target=show_intruder_alert, args=(alert_acknowledged,)).start()
+                            threading.Thread(target=show_intruder_alert, args=(alert_acknowledged,), daemon=True).start()
                     print("ALERT! Intruder Detected.")
                 elif mode == Mode.TRAINING and not approval_in_progress:
                     approval_in_progress = True
