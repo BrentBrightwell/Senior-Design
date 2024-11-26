@@ -138,7 +138,7 @@ def acknowledge_alert(alert_window, alert_acknowledged):
     stop_video_recording()
     alert_window.destroy()
 
-def trigger_siren_if_not_acknowledged(alert_window, alert_acknowledged):
+def trigger_siren_if_not_acknowledged(alert_acknowledged):
     global intruder_alert_active
 
     for _ in range(10):
