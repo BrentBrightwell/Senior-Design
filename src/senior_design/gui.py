@@ -5,7 +5,7 @@ from tkinter import Label, Button, Entry
 from PIL import Image, ImageTk
 import cv2
 from gpio_devices import read_temperature_humidity, trigger_siren, stop_siren
-from utilities import play_alert_sound, stop_alert_sound_event
+from utilities import play_alert_sound, stop_alert_sound_event, start_video_recording, stop_video_recording
 
 SENSOR_UPDATE_INTERVAL = 5 #in seconds
 last_sensor_update_time = 0
@@ -136,6 +136,7 @@ def acknowledge_alert(alert_window):
     intruder_alert_active = False
     stop_alert_sound_event.set()
     stop_siren()
+    stop_video_recording()
     alert_window.destroy()
 
 #def trigger_siren_if_not_acknowledged(alert_window):
@@ -168,6 +169,8 @@ def show_intruder_alert():
     tk.Label(alert_window, text="INTRUDER ALERT!", font=("Arial", 20), fg="red").pack(pady=20)
     acknowledge_button = tk.Button(alert_window, text="Acknowledge", command=lambda: acknowledge_alert(alert_window))
     acknowledge_button.pack(pady=20)
+
+    start_video_recording()
 
     # Play the alert sound on a loop
     threading.Thread(target=play_alert_sound, daemon=True).start()

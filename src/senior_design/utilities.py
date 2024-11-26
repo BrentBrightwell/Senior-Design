@@ -2,11 +2,16 @@ import cv2
 import os
 import shutil
 import time
+from datetime import datetime
 import pygame
 from enum import Enum
 from threading import Event
 from gui import show_face_in_gui
 
+INTRUSION_VIDEO_DIR = "intrusion_videos"
+# Global variable to hold the video writer object
+video_writer = None
+video_capture = cv2.VideoCapture(0)  # Open the default camera
 
 ALERT_SOUND_PATH = "resources/intruder_alert.wav"
 stop_alert_sound_event = Event()
@@ -64,3 +69,29 @@ def play_alert_sound():
 
     alert_sound.stop()
     pygame.mixer.quit()
+
+
+def start_video_recording():
+    # Ensure the directory exists
+    if not os.path.exists(INTRUSION_VIDEO_DIR):
+        os.makedirs(INTRUSION_VIDEO_DIR)
+
+    global video_writer
+    video_format = 'avi'  # You can change this to 'mp4' or another format if needed
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    video_filename = os.path.join(INTRUSION_VIDEO_DIR, f"intrusion_{timestamp}.{video_format}")
+    
+    # Define codec and create VideoWriter object to save video
+    fourcc = cv2.VideoWriter_fourcc(*'XVID')  # You can use 'MJPG' or 'MP4V' as well
+    video_writer = cv2.VideoWriter(video_filename, fourcc, 20.0, (640, 480))  # Adjust resolution as needed
+    
+    print(f"Recording started: {video_filename}")
+
+
+def stop_video_recording():
+    """Stops the video recording and releases the video writer."""
+    global video_writer
+    if video_writer:
+        video_writer.release()
+        video_writer = None
+        print("Recording stopped.")
