@@ -4,10 +4,12 @@ import shutil
 import time
 import pygame
 from enum import Enum
+from threading import Event
 from gui import show_face_in_gui
 
 
 ALERT_SOUND_PATH = "resources/intruder_alert.wav"
+stop_alert_sound_event = Event()
 
 # Define modes as an Enum
 class Mode(Enum):
@@ -51,12 +53,12 @@ def handle_approval(face_roi, detected_faces_dir, approved_faces_dir):
         print("Face denied.")
 
 
-def play_alert_sound(alert_acknowledged):
+def play_alert_sound():
     """Plays an alert sound on loop until acknowledged."""
     pygame.mixer.init()
     alert_sound = pygame.mixer.Sound(ALERT_SOUND_PATH)
-    
-    while not alert_acknowledged.is_set():
+    stop_alert_sound_event.clear()
+    while not stop_alert_sound_event.is_set():
         alert_sound.play()
         time.sleep(8)  # in seconds
 

@@ -1,9 +1,11 @@
 import time
+import threading
 import tkinter as tk
 from tkinter import Label, Button, Entry
 from PIL import Image, ImageTk
 import cv2
-from sensors import read_temperature_humidity
+from senior_design.gpio_devices import read_temperature_humidity
+from utilities import play_alert_sound, stop_alert_sound_event
 
 SENSOR_UPDATE_INTERVAL = 5 #in seconds
 last_sensor_update_time = 0
@@ -128,26 +130,28 @@ def validate_and_approve(first_name_var, last_name_var, status_var, error_label)
     status_var.set("approve")
     return True  # Validation succeeded
 
-def show_intruder_alert(alert_acknowledged):
-    """Displays an intruder alert GUI with acknowledgment button."""
-    root = tk.Tk()
-    root.title("INTRUDER ALERT")
-    root.geometry("300x200")
-    root.eval('tk::PlaceWindow . center')
+def acknowledge_alert(alert_window):
+    global intruder_alert_active
+    intruder_alert_active = False
+    stop_alert_sound_event.set()
+    alert_window.destroy()
 
-    # Display alert message
-    alert_label = tk.Label(root, text="INTRUDER ALERT\nCHECK SYSTEMS!", font=("Arial", 16), fg="red")
-    alert_label.pack(pady=20)
+def show_intruder_alert():
+    global intruder_alert_active  # Ensure we modify the global variable
 
-    # Add an acknowledgment button
-    def acknowledge():
-        alert_acknowledged.set()  # Signal acknowledgment
-        global intruder_alert_active
-        intruder_alert_active = False  # Reset the alert flag
-        root.destroy()
+    if intruder_alert_active:
+        return  # Avoid triggering another alert if one is already active
 
-    ack_button = tk.Button(root, text="Acknowledge", command=acknowledge, bg="green", fg="white", font=("Arial", 12))
-    ack_button.pack(pady=20)
+    intruder_alert_active = True  # Mark alert as active
 
-    root.mainloop()
+    # Create the GUI for the alert
+    alert_window = tk.Toplevel()
+    alert_window.title = "INTRUDER ALERT"
+    alert_window.geometry("400x200")
 
+    tk.Label(alert_window, text="INTRUDER ALERT!", font=("Arial", 20), fg="red").pack(pady=20)
+    acknowledge_button = tk.Button(alert_window, text="Acknowledge", command=lambda: acknowledge_alert(alert_window))
+    acknowledge_button.pack(pady=20)
+
+    # Play the alert sound on a loop
+    threading.Thread(target=play_alert_sound, daemon=True).start()

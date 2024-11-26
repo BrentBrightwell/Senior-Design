@@ -5,7 +5,7 @@ import numpy as np
 from picamera2 import Picamera2
 from utilities import Mode, compare_faces, handle_approval, play_alert_sound
 from gui import draw_banners, show_intruder_alert
-from sensors import initialize_motion_sensor, motion_detected
+from senior_design.gpio_devices import initialize_motion_sensor, motion_detected
 import threading
 
 # User-adjustable variables
