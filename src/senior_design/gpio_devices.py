@@ -8,7 +8,13 @@ temp_humidity_sensor = adafruit_ahtx0.AHTx0(i2c)
 temp_humidity_sensor.calibrate
 
 MOTION_SENSOR_PIN = 17
+LED_PIN = 13
 motion_detected = False
+motion_sensor = gpiozero.MotionSensor(MOTION_SENSOR_PIN)
+led_array = gpiozero.LED(LED_PIN)
+
+SIREN_PIN = 23
+siren = gpiozero.OutputDevice(SIREN_PIN)
 
 def read_temperature_humidity():
     temp_f = temp_humidity_sensor.temperature * 1.8 + 32  # Convert Celsius to Fahrenheit
@@ -18,11 +24,18 @@ def read_temperature_humidity():
 
 def initialize_motion_sensor():
     global motion_detected
-    motion_sensor = gpiozero.MotionSensor(MOTION_SENSOR_PIN)
 
     while True:
         motion_sensor.wait_for_motion()
         motion_detected = True
         print("Motion Detected!")
+        led_array.on()
         motion_sensor.wait_for_no_motion()
         motion_detected = False
+        led_array.off()
+
+def activate_siren():
+    siren.on()
+
+def deactivate_siren():
+    siren.off()
