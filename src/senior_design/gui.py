@@ -4,13 +4,12 @@ import tkinter as tk
 from tkinter import Label, Button, Entry
 from PIL import Image, ImageTk
 import cv2
-from senior_design.gpio_devices import read_temperature_humidity
+from gpio_devices import read_temperature_humidity, trigger_siren, stop_siren
 from utilities import play_alert_sound, stop_alert_sound_event
 
 SENSOR_UPDATE_INTERVAL = 5 #in seconds
 last_sensor_update_time = 0
 last_temp, last_humid = None, None  # Variables to hold last fetched values
-
 
 def approve_face(root, status_var):
     """Set approval status and destroy the GUI."""
@@ -132,17 +131,34 @@ def validate_and_approve(first_name_var, last_name_var, status_var, error_label)
 
 def acknowledge_alert(alert_window):
     global intruder_alert_active
+    from main import alert_acknowledged
+    alert_acknowledged.set()
     intruder_alert_active = False
     stop_alert_sound_event.set()
+    stop_siren()
     alert_window.destroy()
 
+def trigger_siren_if_not_acknowledged(alert_window):
+    from main import alert_acknowledged
+    global intruder_alert_active
+
+    for _ in range(10):
+        if alert_acknowledged.is_set():
+            return
+        time.sleep(1)
+
+    if not alert_acknowledged.is_set():
+        trigger_siren()
+
 def show_intruder_alert():
+    from main import alert_acknowledged
     global intruder_alert_active  # Ensure we modify the global variable
 
     if intruder_alert_active:
         return  # Avoid triggering another alert if one is already active
 
     intruder_alert_active = True  # Mark alert as active
+    alert_acknowledged.clear()
 
     # Create the GUI for the alert
     alert_window = tk.Toplevel()
@@ -155,3 +171,5 @@ def show_intruder_alert():
 
     # Play the alert sound on a loop
     threading.Thread(target=play_alert_sound, daemon=True).start()
+
+    threading.Thread(target=trigger_siren_if_not_acknowledged, args=(alert_window,), daemon=True).start()
