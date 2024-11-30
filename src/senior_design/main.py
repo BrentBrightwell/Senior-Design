@@ -4,7 +4,7 @@ import time
 import numpy as np
 from picamera2 import Picamera2
 from utilities import Mode, compare_faces, handle_approval, play_alert_sound
-from gui import draw_banners, show_intruder_alert
+from gui import draw_banners, show_intruder_alert, show_face_in_gui
 from senior_design.gpio_devices import initialize_motion_sensor, motion_detected
 import threading
 
@@ -42,7 +42,7 @@ approval_in_progress = False
 def initiate_approval(face_roi):
     """Thread target to handle the approval GUI without blocking the main loop."""
     global approval_in_progress
-    handle_approval(face_roi, DETECTED_FACES_DIR, APPROVED_FACES_DIR)
+    handle_approval(face_roi, DETECTED_FACES_DIR, APPROVED_FACES_DIR, show_face_in_gui)
     approval_in_progress = False
 
 while True:

@@ -6,7 +6,6 @@ from datetime import datetime
 import pygame
 from enum import Enum
 from threading import Event
-from gui import show_face_in_gui
 
 INTRUSION_VIDEO_DIR = "intrusion_videos"
 # Global variable to hold the video writer object
@@ -40,14 +39,14 @@ def compare_faces(new_face, approved_faces_dir):
             return True
     return False
 
-def handle_approval(face_roi, detected_faces_dir, approved_faces_dir):
+def handle_approval(face_roi, detected_faces_dir, approved_faces_dir, show_gui_callback):
     """Handles the approval process for a new face."""
     timestamp = int(time.time())
     temp_filename = os.path.join(detected_faces_dir, f"face_{timestamp}.jpg")
     cv2.imwrite(temp_filename, face_roi)
     print("New face detected. Approve or deny.")
 
-    approval_status, first_name, last_name = show_face_in_gui(face_roi)  # Get approval status and names
+    approval_status, first_name, last_name = show_gui_callback(face_roi)  # Get approval status and names
 
     if approval_status == "approve":
         approved_filename = os.path.join(approved_faces_dir, f"face_{last_name}{first_name}.jpg")  # Use first and last name
