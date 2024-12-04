@@ -164,7 +164,7 @@ def show_intruder_alert(alert_acknowledged):
     alert_window.geometry("400x200")
 
     tk.Label(alert_window, text="INTRUDER ALERT!", font=("Arial", 20), fg="red").pack(pady=20)
-    acknowledge_button = tk.Button(alert_window, text="Acknowledge", command=lambda: acknowledge_alert(alert_window))
+    acknowledge_button = tk.Button(alert_window, text="Acknowledge", command=lambda: acknowledge_alert(alert_window, alert_acknowledged))
     acknowledge_button.pack(pady=20)
 
     start_video_recording()
