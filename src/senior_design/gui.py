@@ -11,6 +11,8 @@ SENSOR_UPDATE_INTERVAL = 5 #in seconds
 last_sensor_update_time = 0
 last_temp, last_humid = None, None  # Variables to hold last fetched values
 
+intruder_alert_active = False
+
 def approve_face(root, status_var):
     """Set approval status and destroy the GUI."""
     status_var.set("approve")
@@ -139,8 +141,6 @@ def acknowledge_alert(alert_window, alert_acknowledged):
     alert_window.destroy()
 
 def trigger_siren_if_not_acknowledged(alert_acknowledged):
-    global intruder_alert_active
-
     for _ in range(10):
         if alert_acknowledged.is_set():
             return
@@ -169,7 +169,5 @@ def show_intruder_alert(alert_acknowledged):
 
     start_video_recording()
 
-    # Play the alert sound on a loop
     threading.Thread(target=play_alert_sound, daemon=True).start()
-
     threading.Thread(target=trigger_siren_if_not_acknowledged, args=(alert_window,), daemon=True).start()
