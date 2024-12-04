@@ -18,6 +18,8 @@ alert_sound_thread = None
 
 ALERT_SOUND_PATH = "resources/intruder_alert.wav"
 
+root = tk.Tk()
+
 def approve_face(root, status_var):
     """Set approval status and destroy the GUI."""
     status_var.set("approve")
@@ -28,7 +30,6 @@ def deny_face(root, status_var):
     root.destroy()
 
 def show_face_in_gui(face_roi):
-    root = tk.Tk()
     root.title("Face Approval")
     root.geometry("350x420")
     root.eval('tk::PlaceWindow . center')
@@ -185,3 +186,5 @@ def show_intruder_alert():
     start_video_recording()
 
     threading.Thread(target=trigger_siren_if_not_acknowledged, daemon=True).start()
+
+root.mainloop()

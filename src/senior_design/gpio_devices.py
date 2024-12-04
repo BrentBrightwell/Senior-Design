@@ -39,7 +39,7 @@ def trigger_siren():
     global siren_active
     siren_active = True
     while siren_active:
-        siren.on()
+        #siren.on()
         print("Siren ON!")
         time.sleep(1)
     siren.off()
