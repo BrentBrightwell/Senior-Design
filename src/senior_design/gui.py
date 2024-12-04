@@ -3,7 +3,7 @@ import tkinter as tk
 from tkinter import Label, Button, Entry
 from PIL import Image, ImageTk
 import cv2
-from sensors import read_temperature_humidity
+from gpio_devices import read_temperature_humidity
 
 SENSOR_UPDATE_INTERVAL = 5 #in seconds
 last_sensor_update_time = 0
