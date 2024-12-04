@@ -6,7 +6,7 @@ from PIL import Image, ImageTk
 import cv2
 import pygame
 from gpio_devices import read_temperature_humidity, trigger_siren, stop_siren
-from utilities import play_alert_sound, stop_alert_sound_event, start_video_recording, stop_video_recording
+from utilities import start_video_recording, stop_video_recording
 
 SENSOR_UPDATE_INTERVAL = 5 #in seconds
 last_sensor_update_time = 0
