@@ -3,7 +3,7 @@ import os
 import time
 import numpy as np
 from picamera2 import Picamera2
-from utilities import Mode, compare_faces, handle_approval, play_alert_sound
+from utilities import Mode, compare_faces, handle_approval, handle_intruder_alert
 from gui import draw_banners, show_intruder_alert
 from gpio_devices import initialize_motion_sensor, motion_detected
 import threading
@@ -44,6 +44,12 @@ def initiate_approval(face_roi):
     global approval_in_progress
     handle_approval(face_roi, DETECTED_FACES_DIR, APPROVED_FACES_DIR)
     approval_in_progress = False
+
+def frame_source():
+    """Fetch frames from the Picamera2 feed for video recording."""
+    im = picam2.capture_array()
+    im_rgb = im[:, :, :3].astype(np.uint8)
+    return True, im_rgb
 
 while True:
     if motion_detected:
@@ -93,8 +99,8 @@ while True:
                         if not intruder_alert_active:
                             intruder_alert_active = True
                             alert_acknowledged.clear()
-                            threading.Thread(target=play_alert_sound, args=(alert_acknowledged,)).start()
-                            threading.Thread(target=show_intruder_alert, args=(alert_acknowledged,)).start()
+                            threading.Thread(target=handle_intruder_alert, args=(frame_source,), daemon=True).start()
+                            threading.Thread(target=show_intruder_alert, args=(alert_acknowledged,), daemon=True).start()
                     print("ALERT! Intruder Detected.")
                 elif mode == Mode.TRAINING and not approval_in_progress:
                     approval_in_progress = True
