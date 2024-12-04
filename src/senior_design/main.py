@@ -20,7 +20,7 @@ os.makedirs(APPROVED_FACES_DIR, exist_ok=True)
 
 # Initialize Picamera2
 picam2 = Picamera2()
-picam2.configure(picam2.create_preview_configuration(main={"format": "XRGB8888", "size": (640, 480)}))
+picam2.configure(picam2.create_preview_configuration(main={"format": "RGB888", "size": (640, 480)}))
 picam2.start()
 
 # Load the DNN model
@@ -50,14 +50,13 @@ while True:
         print("Motion detected in main loop!")
 
     # Capture image from the camera
-    im = picam2.capture_array()
-    im_rgb = im[:, :, :3].astype(np.uint8)  # Remove alpha channel
+    image = picam2.capture_array()
 
     # Draw the mode banner at the top of the feed
-    im_rgb = draw_banners(im_rgb, mode)
+    image = draw_banners(image, mode)
 
-    (h, w) = im_rgb.shape[:2]
-    blob = cv2.dnn.blobFromImage(cv2.resize(im_rgb, (300, 300)), 1.0, (300, 300), (104.0, 177.0, 123.0))
+    (h, w) = image.shape[:2]
+    blob = cv2.dnn.blobFromImage(cv2.resize(image, (300, 300)), 1.0, (300, 300), (104.0, 177.0, 123.0))
     net.setInput(blob)
     detections = net.forward()
 
@@ -72,19 +71,19 @@ while True:
             endX, endY = min(w, endX), min(h, endY)
 
             # Extract detected face and convert to grayscale
-            face_roi = im_rgb[startY:endY, startX:endX]
+            face_roi = image[startY:endY, startX:endX]
             grey_face_roi = cv2.cvtColor(face_roi, cv2.COLOR_BGR2GRAY)
 
             if compare_faces(grey_face_roi, APPROVED_FACES_DIR):
                 # Approved face found; show green box
-                cv2.rectangle(im_rgb, (startX, startY), (endX, endY), (0, 255, 0), 2)
+                cv2.rectangle(image, (startX, startY), (endX, endY), (0, 255, 0), 2)
                 intruder_start_time = None
                 intruder_alert_active = False
                 alert_acknowledged.clear()
                 print("Approved face detected.")
             else:
                 # Unapproved face handling
-                cv2.rectangle(im_rgb, (startX, startY), (endX, endY), (0, 0, 255), 2)
+                cv2.rectangle(image, (startX, startY), (endX, endY), (0, 0, 255), 2)
                 if mode == Mode.ACTIVE:
                     if intruder_start_time is None:
                         intruder_start_time = time.time()
@@ -105,7 +104,7 @@ while True:
         alert_acknowledged.clear()
 
     # Display the camera feed
-    cv2.imshow("Security Feed", im_rgb)
+    cv2.imshow("Security Feed", image)
 
     # Keypress handling
     key = cv2.waitKey(1) & 0xFF
