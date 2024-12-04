@@ -55,16 +55,17 @@ def handle_approval(face_roi, detected_faces_dir, approved_faces_dir):
         print("Face denied.")
 
 
-def play_alert_sound(alert_acknowledged):
-    """Plays the intruder alert sound on loop until acknowledged."""
+def play_alert_sound(stop_event):
+    """Plays the intruder alert sound in a loop until the stop event is set."""
     pygame.mixer.init()
-    alert_sound = pygame.mixer.Sound(ALERT_SOUND_PATH)
-
-    while not alert_acknowledged.is_set():
-        alert_sound.play()
-        time.sleep(8)  # Sound length or interval
-    alert_sound.stop()
-    pygame.mixer.quit()
+    pygame.mixer.music.load(ALERT_SOUND_PATH)
+    pygame.mixer.music.play(-1)  # Play the sound on a loop.
+    try:
+        while not stop_event.is_set():
+            time.sleep(0.1)  # Check periodically if the event is set.
+    finally:
+        pygame.mixer.music.stop()
+        pygame.mixer.quit()
 
 
 def start_video_recording(video_filename, stop_recording_event, frame_source):
@@ -79,29 +80,3 @@ def start_video_recording(video_filename, stop_recording_event, frame_source):
         time.sleep(0.05)  # Reduce CPU usage
 
     out.release()
-
-
-def handle_intruder_alert(frame_source):
-    """Handles the intruder alert process."""
-    alert_acknowledged = threading.Event()
-    stop_recording_event = threading.Event()
-
-    # Start threads for alert sound and video recording
-    video_filename = os.path.join(INTRUSION_VIDEO_DIR, f"intrusion_{int(time.time())}.avi")
-    threading.Thread(target=play_alert_sound, args=(alert_acknowledged,), daemon=True).start()
-    threading.Thread(target=start_video_recording, args=(video_filename, stop_recording_event, frame_source), daemon=True).start()
-
-    # Start siren countdown
-    siren_activated = False
-    start_time = time.time()
-
-    while not alert_acknowledged.is_set():
-        if time.time() - start_time >= 10 and not siren_activated:
-            activate_siren()
-            siren_activated = True
-        time.sleep(0.1)  # Reduce CPU usage
-
-    # Clean up once acknowledged
-    stop_recording_event.set()
-    if siren_activated:
-        deactivate_siren()

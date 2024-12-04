@@ -3,7 +3,7 @@ import os
 import time
 import numpy as np
 from picamera2 import Picamera2
-from utilities import Mode, compare_faces, handle_approval, handle_intruder_alert
+from utilities import Mode, compare_faces, handle_approval, play_alert_sound
 from gui import draw_banners, show_intruder_alert
 from gpio_devices import initialize_motion_sensor, motion_detected
 import threading
@@ -13,10 +13,12 @@ CONFIDENCE_THRESHOLD = 0.7  # Face detection confidence
 INTRUDER_DETECTION_THRESHOLD = 1.0  # in seconds
 DETECTED_FACES_DIR = "detected_faces"
 APPROVED_FACES_DIR = "approved_faces"
+INTRUSION_VIDEOS_DIR = "intrusion_videos"
 
-# Create directories for detected and approved faces
+# Create directories for detected and approved faces and videos
 os.makedirs(DETECTED_FACES_DIR, exist_ok=True)
 os.makedirs(APPROVED_FACES_DIR, exist_ok=True)
+os.makedirs(INTRUSION_VIDEOS_DIR, exist_ok=True)
 
 # Initialize Picamera2
 picam2 = Picamera2()
@@ -28,6 +30,7 @@ net = cv2.dnn.readNetFromCaffe("resources/dnn_model/deploy.prototxt", "resources
 
 # Initialize event acknowledgment 
 alert_acknowledged = threading.Event()
+stop_threads = threading.Event()
 intruder_start_time = None
 intruder_alert_active = False
 
@@ -50,6 +53,39 @@ def frame_source():
     im = picam2.capture_array()
     im_rgb = im[:, :, :3].astype(np.uint8)
     return True, im_rgb
+
+def start_video_recording():
+    """Thread for video recording."""
+    video_filename = os.path.join(INTRUSION_VIDEOS_DIR, f"intruder_{int(time.time())}.avi")
+    fourcc = cv2.VideoWriter_fourcc(*"XVID")
+    video_writer = cv2.VideoWriter(video_filename, fourcc, 20.0, (640, 480))
+    print(f"Started recording: {video_filename}")
+    while not stop_threads.is_set():
+        ret, frame = frame_source()
+        if ret:
+            video_writer.write(frame)
+    video_writer.release()
+    print(f"Saved video: {video_filename}")
+
+def handle_intruder_alert():
+    """Handles the intruder alert, playing sound and recording video."""
+    # Start alert sound and video recording in separate threads
+    sound_thread = threading.Thread(target=play_alert_sound)
+    video_thread = threading.Thread(target=start_video_recording)
+    sound_thread.start()
+    video_thread.start()
+
+    # Wait for acknowledgment
+    while not alert_acknowledged.is_set():
+        if stop_threads.is_set():
+            break
+        time.sleep(0.1)  # Prevent busy-waiting
+
+    # Clean up after acknowledgment
+    stop_threads.set()  # Signal threads to stop
+    sound_thread.join()
+    video_thread.join()
+    print("Intruder alert handled.")
 
 while True:
     if motion_detected:
@@ -87,6 +123,7 @@ while True:
                 intruder_start_time = None
                 intruder_alert_active = False
                 alert_acknowledged.clear()
+                stop_threads.clear()
                 print("Approved face detected.")
             else:
                 # Unapproved face handling
@@ -99,13 +136,14 @@ while True:
                         if not intruder_alert_active:
                             intruder_alert_active = True
                             alert_acknowledged.clear()
-                            threading.Thread(target=handle_intruder_alert, args=(frame_source,), daemon=True).start()
+                            stop_threads.clear()
+                            threading.Thread(target=handle_intruder_alert, daemon=True).start()
                             threading.Thread(target=show_intruder_alert, args=(alert_acknowledged,), daemon=True).start()
                     print("ALERT! Intruder Detected.")
                 elif mode == Mode.TRAINING and not approval_in_progress:
                     approval_in_progress = True
                     threading.Thread(target=initiate_approval, args=(grey_face_roi,)).start()
-    
+
     if alert_acknowledged.is_set():
         intruder_alert_active = False
         alert_acknowledged.clear()
