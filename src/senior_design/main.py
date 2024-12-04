@@ -3,7 +3,7 @@ import os
 import time
 import numpy as np
 from picamera2 import Picamera2
-from utilities import Mode, compare_faces, handle_approval, play_alert_sound
+from utilities import Mode, compare_faces, handle_approval
 from gui import draw_banners, show_intruder_alert, show_face_in_gui
 from gpio_devices import initialize_motion_sensor, motion_detected
 import threading
@@ -92,7 +92,6 @@ while True:
                         if not intruder_alert_active:
                             intruder_alert_active = True
                             alert_acknowledged.clear()
-                            threading.Thread(target=play_alert_sound, args=(alert_acknowledged,)).start()
                             threading.Thread(target=show_intruder_alert, args=(alert_acknowledged,), daemon=True).start()
                     print("ALERT! Intruder Detected.")
                 elif mode == Mode.TRAINING and not approval_in_progress:
