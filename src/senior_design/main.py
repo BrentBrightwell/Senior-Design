@@ -5,7 +5,7 @@ import numpy as np
 from picamera2 import Picamera2
 from utilities import Mode, compare_faces, handle_approval, play_alert_sound
 from gui import draw_banners, show_intruder_alert
-from gpio_devices import initialize_motion_sensor, motion_detected
+from gpio_devices import initialize_motion_sensor, motion_detected, activate_siren, deactivate_siren
 import threading
 
 # User-adjustable variables
@@ -77,11 +77,22 @@ def handle_intruder_alert():
     sound_thread.start()
     video_thread.start()
 
+    siren_activated = False
+    start_time = time.time()
     # Wait for acknowledgment
     while not alert_acknowledged.is_set():
         if stop_threads.is_set():
             break
+        elapsed_time = time.time() - start_time
+        if elapsed_time >= 10.0 and not siren_activated:
+            print("Activating siren...")
+            activate_siren()
+            siren_activated = True
         time.sleep(0.1)  # Prevent busy-waiting
+
+    if siren_activated:
+        deactivate_siren()
+        print("Siren deactivated.")
 
     # Clean up after acknowledgment
     stop_threads.set()  # Signal threads to stop
