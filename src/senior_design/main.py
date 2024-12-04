@@ -2,7 +2,6 @@ import cv2
 import os
 import time
 import numpy as np
-from picamera2 import Picamera2
 from utilities import Mode, compare_faces, handle_approval, play_alert_sound
 from gui import draw_banners, show_intruder_alert, show_face_in_gui
 from senior_design.gpio_devices import initialize_motion_sensor, motion_detected
@@ -18,15 +17,21 @@ APPROVED_FACES_DIR = "approved_faces"
 os.makedirs(DETECTED_FACES_DIR, exist_ok=True)
 os.makedirs(APPROVED_FACES_DIR, exist_ok=True)
 
-# Initialize Picamera2
-picam2 = Picamera2()
-picam2.configure(picam2.create_preview_configuration(main={"format": "XRGB8888", "size": (640, 480)}))
-picam2.start()
+# Initialize VideoCapture for Raspberry Pi Camera
+camera = cv2.VideoCapture(0)  # Assuming /dev/video0 for the camera
+camera.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+
+if not camera.isOpened():
+    raise RuntimeError("Could not open the camera. Please check the connection or device permissions.")
 
 # Load the DNN model
-net = cv2.dnn.readNetFromCaffe("resources/dnn_model/deploy.prototxt", "resources/dnn_model/res10_300x300_ssd_iter_140000.caffemodel")
+net = cv2.dnn.readNetFromCaffe(
+    "resources/dnn_model/deploy.prototxt",
+    "resources/dnn_model/res10_300x300_ssd_iter_140000.caffemodel"
+)
 
-# Initialize event acknowledgment 
+# Initialize event acknowledgment
 alert_acknowledged = threading.Event()
 intruder_start_time = None
 intruder_alert_active = False
@@ -50,8 +55,12 @@ while True:
         print("Motion detected in main loop!")
 
     # Capture image from the camera
-    im = picam2.capture_array()
-    im_rgb = im[:, :, :3].astype(np.uint8)  # Remove alpha channel
+    ret, im = camera.read()
+    if not ret:
+        print("Failed to grab frame. Exiting.")
+        break
+
+    im_rgb = im.astype(np.uint8)  # Ensure correct data type
 
     # Draw the mode banner at the top of the feed
     im_rgb = draw_banners(im_rgb, mode)
@@ -99,7 +108,7 @@ while True:
                 elif mode == Mode.TRAINING and not approval_in_progress:
                     approval_in_progress = True
                     threading.Thread(target=initiate_approval, args=(grey_face_roi,)).start()
-    
+
     if alert_acknowledged.is_set():
         intruder_alert_active = False
         alert_acknowledged.clear()
@@ -119,4 +128,5 @@ while True:
     if cv2.getWindowProperty("Security Feed", cv2.WND_PROP_VISIBLE) < 1:
         break
 
+camera.release()
 cv2.destroyAllWindows()
