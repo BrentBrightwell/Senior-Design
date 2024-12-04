@@ -6,7 +6,7 @@ from PIL import Image, ImageTk
 import cv2
 import pygame
 from gpio_devices import read_temperature_humidity, trigger_siren, stop_siren
-from utilities import start_video_recording, stop_video_recording
+from utilities import Mode, start_video_recording, stop_video_recording
 
 SENSOR_UPDATE_INTERVAL = 5
 last_sensor_update_time = 0
@@ -18,7 +18,31 @@ alert_sound_thread = None
 
 ALERT_SOUND_PATH = "resources/intruder_alert.wav"
 
-root = tk.Tk()
+def start_gui(camera_feed_callback):
+    def run_camera_feed():
+        # Start the camera feed in a separate thread
+        camera_feed_thread = threading.Thread(target=camera_feed_callback, args=(mode,), daemon=True)
+        camera_feed_thread.start()
+
+    root = tk.Tk()
+    root.title("Security System")
+
+    # GUI widgets and labels
+    mode_label = Label(root, text="Mode: Training", font=("Helvetica", 14))
+    mode_label.pack(pady=10)
+
+    def toggle_mode():
+        global mode
+        mode = Mode.ACTIVE if mode == Mode.TRAINING else Mode.TRAINING
+        mode_label.config(text=f"Mode: {mode.value}")
+
+    mode_button = Button(root, text="Toggle Mode", command=toggle_mode)
+    mode_button.pack(pady=10)
+
+    # Start the camera feed
+    run_camera_feed()
+
+    root.mainloop()
 
 def approve_face(root, status_var):
     """Set approval status and destroy the GUI."""
@@ -156,11 +180,20 @@ def show_intruder_alert():
     intruder_alert_active = True
     alert_acknowledged.clear()
 
+    # Use the root's `after` method to schedule GUI updates in the main thread
+    root.after(0, create_intruder_alert_gui)
+
+    # Start siren countdown and alert sound in separate threads
+    threading.Thread(target=trigger_siren_after_delay, daemon=True).start()
+    threading.Thread(target=play_alert_sound, daemon=True).start()
+
+def create_intruder_alert_gui():
+    """Creates the intruder alert GUI in the main thread."""
     # Start video recording
     start_video_recording()
 
     # Create the alert GUI
-    alert_window = tk.Toplevel()
+    alert_window = tk.Toplevel(root)
     alert_window.title("INTRUDER ALERT")
     alert_window.geometry("400x200")
 
@@ -171,9 +204,6 @@ def show_intruder_alert():
         command=lambda: acknowledge_alert(alert_window)
     ).pack(pady=20)
 
-    # Start siren countdown and alert sound
-    threading.Thread(target=trigger_siren_after_delay, daemon=True).start()
-    threading.Thread(target=play_alert_sound, daemon=True).start()
 
 
 def trigger_siren_after_delay():
@@ -232,4 +262,5 @@ def start_gui():
 
 
 if __name__ == "__main__":
-    start_gui()
+    # Initialize the GUI once and keep it running in the main thread
+    threading.Thread(target=start_gui, daemon=True).start()
