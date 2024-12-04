@@ -11,6 +11,7 @@ SENSOR_UPDATE_INTERVAL = 5 #in seconds
 last_sensor_update_time = 0
 last_temp, last_humid = None, None  # Variables to hold last fetched values
 
+alert_acknowledged = threading.Event()
 intruder_alert_active = False
 
 def approve_face(root, status_var):
@@ -131,7 +132,7 @@ def validate_and_approve(first_name_var, last_name_var, status_var, error_label)
     status_var.set("approve")
     return True  # Validation succeeded
 
-def acknowledge_alert(alert_window, alert_acknowledged):
+def acknowledge_alert(alert_window):
     global intruder_alert_active
     alert_acknowledged.set()
     intruder_alert_active = False
@@ -140,7 +141,7 @@ def acknowledge_alert(alert_window, alert_acknowledged):
     stop_video_recording()
     alert_window.destroy()
 
-def trigger_siren_if_not_acknowledged(alert_acknowledged):
+def trigger_siren_if_not_acknowledged():
     for _ in range(10):
         if alert_acknowledged.is_set():
             return
@@ -164,10 +165,10 @@ def show_intruder_alert(alert_acknowledged):
     alert_window.geometry("400x200")
 
     tk.Label(alert_window, text="INTRUDER ALERT!", font=("Arial", 20), fg="red").pack(pady=20)
-    acknowledge_button = tk.Button(alert_window, text="Acknowledge", command=lambda: acknowledge_alert(alert_window, alert_acknowledged))
+    acknowledge_button = tk.Button(alert_window, text="Acknowledge", command=lambda: acknowledge_alert(alert_window))
     acknowledge_button.pack(pady=20)
 
     start_video_recording()
 
     threading.Thread(target=play_alert_sound, daemon=True).start()
-    threading.Thread(target=trigger_siren_if_not_acknowledged, args=(alert_window,), daemon=True).start()
+    threading.Thread(target=trigger_siren_if_not_acknowledged, daemon=True).start()
