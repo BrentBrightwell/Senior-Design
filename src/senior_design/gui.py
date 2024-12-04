@@ -185,6 +185,3 @@ def show_intruder_alert():
     start_video_recording()
 
     threading.Thread(target=trigger_siren_if_not_acknowledged, daemon=True).start()
-
-tk.Tk().withdraw()
-tk.mainloop()
