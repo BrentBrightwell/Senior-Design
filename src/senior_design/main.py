@@ -7,6 +7,7 @@ from utilities import Mode, compare_faces, handle_approval
 from gui import draw_banners, show_intruder_alert, show_face_in_gui
 from gpio_devices import initialize_motion_sensor, motion_detected
 import threading
+import queue
 
 # User-adjustable variables
 CONFIDENCE_THRESHOLD = 0.7  # Face detection confidence
@@ -26,7 +27,7 @@ picam2.start()
 # Load the DNN model
 net = cv2.dnn.readNetFromCaffe("resources/dnn_model/deploy.prototxt", "resources/dnn_model/res10_300x300_ssd_iter_140000.caffemodel")
 
-# Initialize event acknowledgment 
+# Initialize event acknowledgment
 alert_acknowledged = threading.Event()
 intruder_start_time = None
 intruder_alert_active = False
@@ -39,71 +40,83 @@ motion_thread.start()
 mode = Mode.TRAINING
 approval_in_progress = False
 
+# Queue to send camera frames to Tkinter
+frame_queue = queue.Queue()
+
 def initiate_approval(face_roi):
     """Thread target to handle the approval GUI without blocking the main loop."""
     global approval_in_progress
     handle_approval(face_roi, DETECTED_FACES_DIR, APPROVED_FACES_DIR, show_face_in_gui)
     approval_in_progress = False
 
+def capture_camera_feed():
+    while True:
+        image = picam2.capture_array()
+        frame_queue.put(image)  # Put frame into the queue
+
+# Start the camera capture in a separate thread
+camera_thread = threading.Thread(target=capture_camera_feed, daemon=True)
+camera_thread.start()
+
 while True:
     if motion_detected:
         print("Motion detected in main loop!")
 
-    # Capture image from the camera
-    image = picam2.capture_array()
+    if not frame_queue.empty():
+        image = frame_queue.get()
 
-    # Draw the mode banner at the top of the feed
-    image = draw_banners(image, mode)
+        # Draw the mode banner at the top of the feed
+        image = draw_banners(image, mode)
 
-    (h, w) = image.shape[:2]
-    blob = cv2.dnn.blobFromImage(cv2.resize(image, (300, 300)), 1.0, (300, 300), (104.0, 177.0, 123.0))
-    net.setInput(blob)
-    detections = net.forward()
+        (h, w) = image.shape[:2]
+        blob = cv2.dnn.blobFromImage(cv2.resize(image, (300, 300)), 1.0, (300, 300), (104.0, 177.0, 123.0))
+        net.setInput(blob)
+        detections = net.forward()
 
-    for i in range(detections.shape[2]):
-        confidence = detections[0, 0, i, 2]
-        if confidence > CONFIDENCE_THRESHOLD:
-            box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
-            (startX, startY, endX, endY) = box.astype("int")
+        for i in range(detections.shape[2]):
+            confidence = detections[0, 0, i, 2]
+            if confidence > CONFIDENCE_THRESHOLD:
+                box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
+                (startX, startY, endX, endY) = box.astype("int")
 
-            # Ensure bounding box is within image bounds
-            startX, startY = max(0, startX), max(0, startY)
-            endX, endY = min(w, endX), min(h, endY)
+                # Ensure bounding box is within image bounds
+                startX, startY = max(0, startX), max(0, startY)
+                endX, endY = min(w, endX), min(h, endY)
 
-            # Extract detected face and convert to grayscale
-            face_roi = image[startY:endY, startX:endX]
-            grey_face_roi = cv2.cvtColor(face_roi, cv2.COLOR_BGR2GRAY)
+                # Extract detected face and convert to grayscale
+                face_roi = image[startY:endY, startX:endX]
+                grey_face_roi = cv2.cvtColor(face_roi, cv2.COLOR_BGR2GRAY)
 
-            if compare_faces(grey_face_roi, APPROVED_FACES_DIR):
-                # Approved face found; show green box
-                cv2.rectangle(image, (startX, startY), (endX, endY), (0, 255, 0), 2)
-                intruder_start_time = None
-                intruder_alert_active = False
-                alert_acknowledged.clear()
-                print("Approved face detected.")
-            else:
-                # Unapproved face handling
-                cv2.rectangle(image, (startX, startY), (endX, endY), (0, 0, 255), 2)
-                if mode == Mode.ACTIVE:
-                    if intruder_start_time is None:
-                        intruder_start_time = time.time()
-                    elif time.time() - intruder_start_time >= INTRUDER_DETECTION_THRESHOLD:
-                        # Intruder alert trigger
-                        if not intruder_alert_active:
-                            intruder_alert_active = True
-                            alert_acknowledged.clear()
-                            threading.Thread(target=show_intruder_alert, daemon=True).start()
-                    print("ALERT! Intruder Detected.")
-                elif mode == Mode.TRAINING and not approval_in_progress:
-                    approval_in_progress = True
-                    threading.Thread(target=initiate_approval, args=(grey_face_roi,)).start()
-    
-    if alert_acknowledged.is_set():
-        intruder_alert_active = False
-        alert_acknowledged.clear()
+                if compare_faces(grey_face_roi, APPROVED_FACES_DIR):
+                    # Approved face found; show green box
+                    cv2.rectangle(image, (startX, startY), (endX, endY), (0, 255, 0), 2)
+                    intruder_start_time = None
+                    intruder_alert_active = False
+                    alert_acknowledged.clear()
+                    print("Approved face detected.")
+                else:
+                    # Unapproved face handling
+                    cv2.rectangle(image, (startX, startY), (endX, endY), (0, 0, 255), 2)
+                    if mode == Mode.ACTIVE:
+                        if intruder_start_time is None:
+                            intruder_start_time = time.time()
+                        elif time.time() - intruder_start_time >= INTRUDER_DETECTION_THRESHOLD:
+                            # Intruder alert trigger
+                            if not intruder_alert_active:
+                                intruder_alert_active = True
+                                alert_acknowledged.clear()
+                                threading.Thread(target=show_intruder_alert, daemon=True).start()
+                        print("ALERT! Intruder Detected.")
+                    elif mode == Mode.TRAINING and not approval_in_progress:
+                        approval_in_progress = True
+                        threading.Thread(target=initiate_approval, args=(grey_face_roi,)).start()
 
-    # Display the camera feed
-    cv2.imshow("Security Feed", image)
+        if alert_acknowledged.is_set():
+            intruder_alert_active = False
+            alert_acknowledged.clear()
+
+        # Display the camera feed
+        cv2.imshow("Security Feed", image)
 
     # Keypress handling
     key = cv2.waitKey(1) & 0xFF
