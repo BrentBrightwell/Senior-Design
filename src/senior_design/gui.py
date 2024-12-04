@@ -4,6 +4,7 @@ import tkinter as tk
 from tkinter import Label, Button, Entry
 from PIL import Image, ImageTk
 import cv2
+import pygame
 from gpio_devices import read_temperature_humidity, trigger_siren, stop_siren
 from utilities import play_alert_sound, stop_alert_sound_event, start_video_recording, stop_video_recording
 
@@ -13,6 +14,9 @@ last_temp, last_humid = None, None  # Variables to hold last fetched values
 
 alert_acknowledged = threading.Event()
 intruder_alert_active = False
+alert_sound_thread = None
+
+ALERT_SOUND_PATH = "resources/intruder_alert.wav"
 
 def approve_face(root, status_var):
     """Set approval status and destroy the GUI."""
@@ -136,7 +140,6 @@ def acknowledge_alert(alert_window):
     global intruder_alert_active
     alert_acknowledged.set()
     intruder_alert_active = False
-    stop_alert_sound_event.set()
     stop_siren()
     stop_video_recording()
     alert_window.destroy()
@@ -149,6 +152,17 @@ def trigger_siren_if_not_acknowledged():
 
     if not alert_acknowledged.is_set():
         trigger_siren()
+
+def play_alert_sound():
+    """Plays an alert sound on loop until acknowledged."""
+    pygame.mixer.init()
+    alert_sound = pygame.mixer.Sound(ALERT_SOUND_PATH)
+    while not alert_acknowledged.is_set():
+        alert_sound.play()
+        time.sleep(8)  # in seconds
+
+    alert_sound.stop()
+    pygame.mixer.quit()
 
 def show_intruder_alert():
     global intruder_alert_active  # Ensure we modify the global variable
@@ -170,5 +184,7 @@ def show_intruder_alert():
 
     start_video_recording()
 
-    threading.Thread(target=play_alert_sound, daemon=True).start()
     threading.Thread(target=trigger_siren_if_not_acknowledged, daemon=True).start()
+
+tk.Tk().withdraw()
+tk.mainloop()
