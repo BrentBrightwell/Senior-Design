@@ -69,8 +69,10 @@ def start_video_recording():
 
 def handle_intruder_alert():
     """Handles the intruder alert, playing sound and recording video."""
+    global stop_threads
+
     # Start alert sound and video recording in separate threads
-    sound_thread = threading.Thread(target=play_alert_sound)
+    sound_thread = threading.Thread(target=play_alert_sound, args=(stop_threads,))
     video_thread = threading.Thread(target=start_video_recording)
     sound_thread.start()
     video_thread.start()
