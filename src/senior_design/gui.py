@@ -150,7 +150,7 @@ def trigger_siren_if_not_acknowledged():
     if not alert_acknowledged.is_set():
         trigger_siren()
 
-def show_intruder_alert(alert_acknowledged):
+def show_intruder_alert():
     global intruder_alert_active  # Ensure we modify the global variable
 
     if intruder_alert_active:
