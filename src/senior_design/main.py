@@ -118,4 +118,5 @@ while True:
     if cv2.getWindowProperty("Security Feed", cv2.WND_PROP_VISIBLE) < 1:
         break
 
+picam2.stop()
 cv2.destroyAllWindows()
