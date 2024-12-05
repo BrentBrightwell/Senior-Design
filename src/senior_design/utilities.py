@@ -2,14 +2,14 @@ import cv2
 import os
 import shutil
 import time
-from datetime import datetime
+import pygame
 from enum import Enum
-from threading import Event
+from gui import show_face_in_gui
 
+
+ALERT_SOUND_PATH = "resources/intruder_alert.wav"
 INTRUSION_VIDEO_DIR = "intrusion_videos"
-# Global variable to hold the video writer object
-video_writer = None
-video_capture = cv2.VideoCapture(0)  # Open the default camera
+os.makedirs(INTRUSION_VIDEO_DIR, exist_ok=True)
 
 # Define modes as an Enum
 class Mode(Enum):
@@ -35,14 +35,14 @@ def compare_faces(new_face, approved_faces_dir):
             return True
     return False
 
-def handle_approval(face_roi, detected_faces_dir, approved_faces_dir, show_gui_callback):
+def handle_approval(face_roi, detected_faces_dir, approved_faces_dir):
     """Handles the approval process for a new face."""
     timestamp = int(time.time())
     temp_filename = os.path.join(detected_faces_dir, f"face_{timestamp}.jpg")
     cv2.imwrite(temp_filename, face_roi)
     print("New face detected. Approve or deny.")
 
-    approval_status, first_name, last_name = show_gui_callback(face_roi)  # Get approval status and names
+    approval_status, first_name, last_name = show_face_in_gui(face_roi)  # Get approval status and names
 
     if approval_status == "approve":
         approved_filename = os.path.join(approved_faces_dir, f"face_{last_name}{first_name}.jpg")  # Use first and last name
@@ -53,27 +53,28 @@ def handle_approval(face_roi, detected_faces_dir, approved_faces_dir, show_gui_c
         print("Face denied.")
 
 
-def start_video_recording():
-    # Ensure the directory exists
-    if not os.path.exists(INTRUSION_VIDEO_DIR):
-        os.makedirs(INTRUSION_VIDEO_DIR)
-
-    global video_writer
-    video_format = 'avi'  # You can change this to 'mp4' or another format if needed
-    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    video_filename = os.path.join(INTRUSION_VIDEO_DIR, f"intrusion_{timestamp}.{video_format}")
-    
-    # Define codec and create VideoWriter object to save video
-    fourcc = cv2.VideoWriter_fourcc(*'XVID')  # You can use 'MJPG' or 'MP4V' as well
-    video_writer = cv2.VideoWriter(video_filename, fourcc, 20.0, (640, 480))  # Adjust resolution as needed
-    
-    print(f"Recording started: {video_filename}")
+def play_alert_sound(stop_event):
+    """Plays the intruder alert sound in a loop until the stop event is set."""
+    pygame.mixer.init()
+    pygame.mixer.music.load(ALERT_SOUND_PATH)
+    pygame.mixer.music.play(-1)  # Play the sound on a loop.
+    try:
+        while not stop_event.is_set():
+            time.sleep(0.1)  # Check periodically if the event is set.
+    finally:
+        pygame.mixer.music.stop()
+        pygame.mixer.quit()
 
 
-def stop_video_recording():
-    """Stops the video recording and releases the video writer."""
-    global video_writer
-    if video_writer:
-        video_writer.release()
-        video_writer = None
-        print("Recording stopped.")
+def start_video_recording(video_filename, stop_recording_event, frame_source):
+    """Records video from the camera feed until the stop event is triggered."""
+    fourcc = cv2.VideoWriter_fourcc(*'XVID')
+    out = cv2.VideoWriter(video_filename, fourcc, 20.0, (640, 480))  # Adjust resolution as needed
+
+    while not stop_recording_event.is_set():
+        ret, frame = frame_source()
+        if ret:
+            out.write(frame)
+        time.sleep(0.05)  # Reduce CPU usage
+
+    out.release()

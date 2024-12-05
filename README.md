@@ -1,6 +1,6 @@
 # Raspberry Pi Facial Detection Security System
 
-This repository contains a Python-based facial detection security system built on a Raspberry Pi using a Picamera, OpenCV, and additional sensors for environmental monitoring. The system features two modes—`Training` and `Active`—for real-time facial recognition and approval of new faces through a graphical user interface (GUI). It also provides live temperature and humidity readings within the camera feed.
+This repository contains a Python-based facial detection security system built on a Raspberry Pi using a Picamera, OpenCV, and additional sensors for environmental monitoring. The system features two modes—`Training` and `Active`—for real-time facial recognition and approval of new faces through a graphical user interface (GUI). It also provides live temperature and humidity readings within the camera feed and integrates an intruder alert system with audio.
 
 ## Table of Contents
 - [Overview](#overview)
@@ -17,7 +17,7 @@ The project enables users to create a facial detection system for security purpo
 1. **Training Mode**: New faces detected by the camera can be approved or denied manually using a GUI prompt.
 2. **Active Mode**: The system verifies detected faces against pre-approved entries and triggers an intruder alert if an unapproved face is detected.
 
-The system provides a live camera feed with bounding boxes drawn around detected faces, a mode banner at the top, and live temperature and humidity readings at the bottom right of the feed.
+The system provides a live camera feed with bounding boxes drawn around detected faces, a mode banner at the top, and live temperature and humidity readings at the bottom right of the feed. Additionally, if an intruder is detected for more than one second, the system will trigger an alert with an acknowledgment button and play a siren sound until acknowledged.
 
 ## System Requirements
 - Raspberry Pi (with Picamera module and AM2301B sensor)
@@ -29,6 +29,8 @@ The system provides a live camera feed with bounding boxes drawn around detected
 - Pillow (PIL)
 - Blinka for RaspberryPi (Instructions: https://learn.adafruit.com/circuitpython-on-raspberrypi-linux/installing-circuitpython-on-raspberry-pi)
 - Adafruit CircuitPython libraries for sensor integration
+- gpiozero (for GPIO control)
+- `sounddevice` (for audio alerts)
 
 ## Project Structure
 
@@ -59,12 +61,15 @@ Key functionalities:
 - `show_face_in_gui()`: Displays a GUI for user approval or denial of new faces.
 - `draw_mode_banner()`: Adds the current mode banner at the top of the feed and overlays temperature and humidity readings at the bottom right.
 - `approve_face()` and `deny_face()`: Handle user approval or denial actions within the GUI.
+- `show_intruder_alert()`: Displays an intruder alert GUI with acknowledgment button and controls the alert sound.
 
-### 4. `sensors.py`
-Integrates the ASAIR AM2301B sensor to read and display live temperature and humidity values in the camera feed.
+### 4. `gpio_devices.py`
+Integrates the AM2301B sensor for environmental monitoring and controls the motion sensor, LED indicator, and siren.
 
 Key functionalities:
 - `read_temperature_humidity()`: Fetches and formats temperature and humidity data for display on the feed.
+- `initialize_motion_sensor()`: Monitors the motion sensor for movement and triggers an LED indicator.
+- `activate_siren()` and `deactivate_siren()`: Controls the siren based on motion detection or intruder alerts.
 
 ## Usage
 
@@ -75,17 +80,19 @@ It is IMPERATIVE that the packages are installed within a Python virtual environ
 Ensure the required Python packages are installed.
 
 ```bash
-pip install opencv-python numpy picamera2 pillow
+pip install opencv-python numpy picamera2 pillow gpiozero sounddevice
 ```
 
 Install Blinka for RaspberryPi: https://learn.adafruit.com/circuitpython-on-raspberrypi-linux/installing-circuitpython-on-raspberry-pi
 
-Then confirm that Blinka was sucessfully installed on the device.
+Then confirm that Blinka was successfully installed on the device.
+
 ```bash
 python3 dependancy_testing/blinka_test.py
 ```
 
 Afterwards, confirm the temperature and humidity sensor is properly hooked up to the device.
+
 ```bash
 python3 dependancy_testing/AHTx0_test.py
 ```
@@ -93,7 +100,6 @@ python3 dependancy_testing/AHTx0_test.py
 ### Running the Program
 
 Run the `main.py` script to start the system.
-
 ```bash
 python3 src/senior_design/main.py
 ```
@@ -109,6 +115,12 @@ Press the `t` key to toggle between modes. The current mode is displayed at the 
 
 Temperature and humidity readings from the AM2301B sensor are displayed at the bottom right of the live camera feed. The update interval for these readings can be customized in `gui.py` (adjust `SENSOR_UPDATE_INTERVAL` for optimal performance).
 
+### Intruder Alert Sequence
+
+If the system detects an unapproved face for more than one second in `Active Mode`, it will trigger an intruder alert. The alert will be displayed in a GUI with an acknowledgment button, and an alert sound will play in a 2-second loop until the alert is acknowledged. If the alert is not acknowledged without 10 seconds, a high-decible siren will sound.
+
+A recording of the intrusion until the alert is acknowledged will be saved for further examination.
+
 ### Exit
 
 Press `ESC` to exit the program.
@@ -120,6 +132,7 @@ You can easily customize the system to fit your needs by adjusting variables in 
 - `CONFIDENCE_THRESHOLD`: Sets the confidence level for face detection.
 - `DETECTED_FACES_DIR`: Directory where new face images are stored.
 - `APPROVED_FACES_DIR`: Directory where approved face images are stored.
+- `SENSOR_UPDATE_INTERVAL`: Controls the frequency of temperature and humidity sensor updates (adjust in `gui.py`).
 
 ## License
 

@@ -1,4 +1,3 @@
-import time
 import board
 import adafruit_ahtx0
 import gpiozero
@@ -35,15 +34,8 @@ def initialize_motion_sensor():
         motion_detected = False
         led_array.off()
 
-def trigger_siren():
-    global siren_active
-    siren_active = True
-    while siren_active:
-        #siren.on()
-        print("Siren ON!")
-        time.sleep(1)
-    siren.off()
+def activate_siren():
+    siren.on()
 
-def stop_siren():
-    global siren_active
-    siren_active = False
+def deactivate_siren():
+    siren.off()

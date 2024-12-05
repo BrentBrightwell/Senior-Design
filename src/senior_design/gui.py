@@ -1,48 +1,14 @@
 import time
-import threading
 import tkinter as tk
 from tkinter import Label, Button, Entry
 from PIL import Image, ImageTk
 import cv2
-import pygame
-from gpio_devices import read_temperature_humidity, trigger_siren, stop_siren
-from utilities import Mode, start_video_recording, stop_video_recording
+from gpio_devices import read_temperature_humidity
 
-SENSOR_UPDATE_INTERVAL = 5
+SENSOR_UPDATE_INTERVAL = 5 #in seconds
 last_sensor_update_time = 0
-last_temp, last_humid = None, None
+last_temp, last_humid = None, None  # Variables to hold last fetched values
 
-alert_acknowledged = threading.Event()
-intruder_alert_active = False
-alert_sound_thread = None
-
-ALERT_SOUND_PATH = "resources/intruder_alert.wav"
-
-def start_gui(camera_feed_callback):
-    def run_camera_feed():
-        # Start the camera feed in a separate thread
-        camera_feed_thread = threading.Thread(target=camera_feed_callback, args=(mode,), daemon=True)
-        camera_feed_thread.start()
-
-    root = tk.Tk()
-    root.title("Security System")
-
-    # GUI widgets and labels
-    mode_label = Label(root, text="Mode: Training", font=("Helvetica", 14))
-    mode_label.pack(pady=10)
-
-    def toggle_mode():
-        global mode
-        mode = Mode.ACTIVE if mode == Mode.TRAINING else Mode.TRAINING
-        mode_label.config(text=f"Mode: {mode.value}")
-
-    mode_button = Button(root, text="Toggle Mode", command=toggle_mode)
-    mode_button.pack(pady=10)
-
-    # Start the camera feed
-    run_camera_feed()
-
-    root.mainloop()
 
 def approve_face(root, status_var):
     """Set approval status and destroy the GUI."""
@@ -53,29 +19,8 @@ def deny_face(root, status_var):
     status_var.set("deny")
     root.destroy()
 
-def validate_and_approve(first_name_var, last_name_var, status_var, error_label):
-    """Validates the input and sets the approval status if valid."""
-    first_name = first_name_var.get().strip()
-    last_name = last_name_var.get().strip()
-
-    # Clear previous error message
-    error_label.config(text="")
-
-    # Check if either field is empty
-    if not first_name or not last_name:
-        error_label.config(text="First and Last name MUST be filled out!")
-        return False  # Validation failed
-
-    # Check for spaces within the names (not just leading/trailing)
-    if " " in first_name or " " in last_name:
-        error_label.config(text="First and Last name cannot include spaces!")
-        return False  # Validation failed
-
-    # If validation passes, set approval status
-    status_var.set("approve")
-    return True  # Validation succeeded
-
 def show_face_in_gui(face_roi):
+    root = tk.Tk()
     root.title("Face Approval")
     root.geometry("350x420")
     root.eval('tk::PlaceWindow . center')
@@ -117,16 +62,16 @@ def show_face_in_gui(face_roi):
     approve_button.grid(row=3, column=0, padx=20, pady=20)
     deny_button.grid(row=3, column=1, padx=20, pady=20)
 
+    # Start the GUI main loop
     root.mainloop()
 
     return status_var.get(), first_name_var.get(), last_name_var.get()
 
 def draw_banners(im_rgb, mode):
-    """Draws the mode banner and sensor data on the camera feed."""
     global last_sensor_update_time, last_temp, last_humid
     current_time = time.time()
 
-    # Draw mode banner
+    # Draw the mode banner
     (h, w) = im_rgb.shape[:2]
     banner_height = 40
     cv2.rectangle(im_rgb, (0, 0), (w, banner_height), (50, 50, 50), -1)
@@ -141,16 +86,18 @@ def draw_banners(im_rgb, mode):
     text_y = (banner_height + text_size[1]) // 2
     cv2.putText(im_rgb, text, (text_x, text_y), font, font_scale, font_color, thickness)
 
-    # Draw temperature and humidity (similar to before)
+    # Check if the interval has passed before updating sensor data
     if current_time - last_sensor_update_time > SENSOR_UPDATE_INTERVAL:
         last_temp, last_humid = read_temperature_humidity()
-        last_sensor_update_time = current_time
+        last_sensor_update_time = current_time  # Reset the last update time
 
+    # Draw the temperature/humidity box at the bottom right
     box_width, box_height = 180, 50
     box_x = w - box_width - 10
     box_y = h - box_height - 10
     cv2.rectangle(im_rgb, (box_x, box_y), (box_x + box_width, box_y + box_height), (255, 255, 255), -1)
 
+    # Display the last fetched temperature and humidity in the box
     if last_temp is not None and last_humid is not None:
         text_temp = f"Temperature: {last_temp} F"
         text_humid = f"Humidity: {last_humid} %"
@@ -159,108 +106,46 @@ def draw_banners(im_rgb, mode):
 
     return im_rgb
 
+def validate_and_approve(first_name_var, last_name_var, status_var, error_label):
+    """Validates the input and sets the approval status if valid."""
+    first_name = first_name_var.get().strip()
+    last_name = last_name_var.get().strip()
 
-def play_alert_sound():
-    while not alert_acknowledged.is_set():
-        pygame.mixer.init()
-        pygame.mixer.music.load(ALERT_SOUND_PATH)
-        pygame.mixer.music.play(loops=-1)
+    # Clear previous error message
+    error_label.config(text="")
 
-def stop_alert_sound():
-    """Stops the alert sound."""
-    alert_acknowledged.set()
+    # Check if either field is empty
+    if not first_name or not last_name:
+        error_label.config(text="First and Last name MUST be filled out!")
+        return False  # Validation failed
 
-def show_intruder_alert():
-    """Displays the intruder alert dialog and manages the alert sequence."""
-    global intruder_alert_active
+    # Check for spaces within the names (not just leading/trailing)
+    if " " in first_name or " " in last_name:
+        error_label.config(text="First and Last name cannot include spaces!")
+        return False  # Validation failed
 
-    if intruder_alert_active:  # Prevent duplicate alerts
-        return
-
-    intruder_alert_active = True
-    alert_acknowledged.clear()
-
-    # Use the root's `after` method to schedule GUI updates in the main thread
-    root.after(0, create_intruder_alert_gui)
-
-    # Start siren countdown and alert sound in separate threads
-    threading.Thread(target=trigger_siren_after_delay, daemon=True).start()
-    threading.Thread(target=play_alert_sound, daemon=True).start()
-
-def create_intruder_alert_gui():
-    """Creates the intruder alert GUI in the main thread."""
-    # Start video recording
-    start_video_recording()
-
-    # Create the alert GUI
-    alert_window = tk.Toplevel(root)
-    alert_window.title("INTRUDER ALERT")
-    alert_window.geometry("400x200")
-
-    tk.Label(alert_window, text="INTRUDER ALERT!", font=("Arial", 20), fg="red").pack(pady=20)
-    tk.Button(
-        alert_window,
-        text="Acknowledge",
-        command=lambda: acknowledge_alert(alert_window)
-    ).pack(pady=20)
+    # If validation passes, set approval status
+    status_var.set("approve")
+    return True  # Validation succeeded
 
 
-
-def trigger_siren_after_delay():
-    """Triggers the siren after a delay if the alert is not acknowledged."""
-    time.sleep(10)
-    if not alert_acknowledged.is_set():
-        trigger_siren()
-
-
-def acknowledge_alert(alert_window):
-    """Acknowledges the alert, stops the siren, saves the video, and closes the GUI."""
-    global intruder_alert_active
-
-    alert_acknowledged.set()
-    intruder_alert_active = False
-    stop_video_recording()
-    stop_siren()
-    stop_alert_sound()
-    alert_window.destroy()
-
-
-# Start the GUI for the main feed and handle updates
-def start_gui():
-    global last_temp, last_humid
-
-    # Initialize Tkinter window (if not already initialized in other parts of your code)
+def show_intruder_alert(alert_acknowledged):
+    """Displays an intruder alert GUI with acknowledgment button."""
     root = tk.Tk()
-    root.title("Security Feed")
-
-    # Set the window dimensions and center it
-    root.geometry("640x480")  # or any dimensions you want for the GUI window
+    root.title("INTRUDER ALERT")
+    root.geometry("300x200")
     root.eval('tk::PlaceWindow . center')
 
-    # Create label widgets for temperature and humidity (these will update periodically)
-    temp_label = Label(root, text=f"temp (F): {last_temp}" if last_temp else "temp (F): --", font=("Helvetica", 12))
-    temp_label.grid(row=0, column=0, padx=10, pady=5)
+    # Display alert message
+    alert_label = tk.Label(root, text="INTRUDER ALERT\nCHECK SYSTEMS!", font=("Arial", 16), fg="red")
+    alert_label.pack(pady=20)
 
-    humidity_label = Label(root, text=f"humidity: {last_humid}" if last_humid else "humidity: --", font=("Helvetica", 12))
-    humidity_label.grid(row=0, column=1, padx=10, pady=5)
+    # Add an acknowledgment button
+    def acknowledge():
+        alert_acknowledged.set()  # Signal acknowledgment
+        root.destroy()
 
-    # Update the temperature and humidity labels periodically
-    def update_sensor_data():
-        # Update temperature and humidity values
-        temp, humidity = read_temperature_humidity()
-        temp_label.config(text=f"temp (F): {temp}")
-        humidity_label.config(text=f"humidity: {humidity}")
+    ack_button = tk.Button(root, text="Acknowledge", command=acknowledge, bg="green", fg="white", font=("Arial", 12))
+    ack_button.pack(pady=20)
 
-        # Schedule the next update after SENSOR_UPDATE_INTERVAL seconds
-        root.after(SENSOR_UPDATE_INTERVAL * 1000, update_sensor_data)  # Convert to milliseconds
-
-    # Start the sensor data updates
-    update_sensor_data()
-
-    # Start the Tkinter event loop
     root.mainloop()
-
-
-if __name__ == "__main__":
-    # Initialize the GUI once and keep it running in the main thread
-    threading.Thread(target=start_gui, daemon=True).start()
